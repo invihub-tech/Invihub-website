@@ -202,10 +202,6 @@
     border-color: #f5b82e;
     outline: none;
   }
-
-  .map-frame {
-    filter: grayscale(1) contrast(1.15);
-  }
 }
 
 @media (max-width: 1279px) {

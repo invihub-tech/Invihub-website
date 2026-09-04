@@ -11,7 +11,7 @@ function CapabilityCard({ current, active }) {
           {current.number} / 06
         </span>
       </div>
-      <div className="relative aspect-[16/10] overflow-hidden sm:aspect-[4/3] lg:aspect-square">
+      <div className="relative aspect-[16/10] overflow-hidden sm:aspect-[4/3] md:aspect-square">
         {services.map((service, i) => (
           <img
             key={service.number}
@@ -24,7 +24,7 @@ function CapabilityCard({ current, active }) {
         ))}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/55 to-transparent p-4 pt-12 sm:p-5 sm:pt-16">
           <div className="text-[9px] tracking-[0.16em] uppercase text-[#c5a059] sm:text-[10px]">CURRENT CAPABILITY</div>
-          <div className="mt-1 font-serif text-[22px] leading-tight text-white sm:text-[28px] lg:text-[34px]">{current.title}</div>
+          <div className="mt-1 font-serif text-[22px] leading-tight text-white sm:text-[28px] md:text-[30px] lg:text-[34px]">{current.title}</div>
         </div>
       </div>
       <div className="px-4 pt-3 pb-4">
@@ -48,8 +48,8 @@ function ServiceStory({ service, index, active, innerRef, onEnter }) {
     <article
       ref={innerRef}
       onMouseEnter={onEnter}
-      className={`flex min-h-0 flex-col justify-center py-8 transition-opacity duration-[650ms] ease-invi motion-reduce:transition-none sm:py-10 md:min-h-[55vh] lg:min-h-[80vh] ${
-        isActive ? 'opacity-100' : 'opacity-[0.28] lg:opacity-[0.22]'
+      className={`flex min-h-0 flex-col justify-center py-8 transition-opacity duration-[650ms] ease-invi motion-reduce:transition-none sm:py-10 md:min-h-[70vh] lg:min-h-[80vh] ${
+        isActive ? 'opacity-100' : 'opacity-[0.22]'
       }`}
     >
       <div className="text-[13px] font-serif text-[#c5a059]">{service.number}</div>
@@ -113,7 +113,7 @@ export default function Services() {
     <section id="services" className="section-pad bg-black border-t border-white/10">
       <div className="container-page">
         <Reveal>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-end mb-12 lg:mb-16">
+          <div className="mb-10 grid grid-cols-1 items-end gap-6 md:mb-14 md:grid-cols-2 md:gap-12 lg:mb-16 lg:gap-16">
             <div>
               <div className="text-[12px] font-semibold tracking-[0.16em] uppercase text-[#c5a059] mb-4">OUR SERVICES</div>
               <h2 className="font-serif font-semibold leading-[1.08] text-[clamp(28px,7vw,64px)]">
@@ -122,14 +122,14 @@ export default function Services() {
                 <span className="text-white/40">One continuous journey.</span>
               </h2>
             </div>
-            <p className="text-[15px] sm:text-[16px] leading-[1.7] text-white/50 max-w-md lg:pb-2">
+            <p className="max-w-md text-[15px] leading-[1.7] text-white/50 sm:text-[16px] md:pb-2">
               Scroll through our capabilities. The visual stays fixed while each service story moves through the viewport and fades into the next.
             </p>
           </div>
         </Reveal>
 
-        <div className="items-start lg:grid lg:grid-cols-2 lg:gap-16">
-          <div className="sticky top-[calc(60px+env(safe-area-inset-top))] z-10 mb-6 bg-black pb-2 sm:top-[calc(68px+env(safe-area-inset-top))] lg:top-[100px] lg:z-0 lg:mb-0 lg:pb-0">
+        <div className="items-start md:grid md:grid-cols-2 md:gap-10 lg:gap-16">
+          <div className="mb-8 md:sticky md:top-[100px] md:mb-0 md:self-start">
             <CapabilityCard current={current} active={active} />
           </div>
 
