@@ -202,6 +202,54 @@
     border-color: #f5b82e;
     outline: none;
   }
+
+  .btn-gold {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 50px;
+    padding: 0 26px;
+    background: #c5a059;
+    color: #000000;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: background 250ms var(--ease-invi), transform 250ms var(--ease-invi);
+  }
+
+  .btn-gold:hover {
+    background: #d4b36e;
+    transform: translateY(-1px);
+  }
+
+  .btn-gold-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 50px;
+    padding: 0 26px;
+    background: transparent;
+    color: #c5a059;
+    border: 1px solid #c5a059;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .btn-gold-outline:hover {
+    background: rgba(197, 160, 89, 0.08);
+  }
+
+  .shop-ui .field-input:focus,
+  .admin-ui .field-input:focus {
+    border-color: #c5a059;
+  }
 }
 
 @media (max-width: 1279px) {

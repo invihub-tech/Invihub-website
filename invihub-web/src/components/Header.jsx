@@ -27,7 +27,7 @@ export default function Header() {
   const onHome = location.pathname === '/'
   const active = useActiveSection(onHome)
   const [open, setOpen] = useState(false)
-  const shopActive = location.pathname === '/shop'
+  const shopActive = location.pathname.startsWith('/shop')
 
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : ''
