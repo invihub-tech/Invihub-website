@@ -42,7 +42,7 @@ export const services = [
       'Rapid Prototyping via 3D Printing',
     ],
     journey: 'Prototype → Test → Scale',
-    image: '/images/hero-product.png',
+    image: '/images/service-product.png',
   },
   {
     number: '04',
@@ -57,7 +57,7 @@ export const services = [
       'Box Build & System Integration',
     ],
     journey: 'DVT → Production',
-    image: '/images/work-electronics.png',
+    image: '/images/service-electronics.png',
   },
   {
     number: '05',
@@ -73,7 +73,7 @@ export const services = [
       '3D Printing & PCB Assembly',
     ],
     journey: 'Assembly → QC → Delivery',
-    image: '/images/work-manufacturing.png',
+    image: '/images/service-manufacturing.png',
   },
   {
     number: '06',
@@ -88,6 +88,6 @@ export const services = [
       'Logistics Management',
     ],
     journey: 'Trusted Vendor Ecosystem',
-    image: '/images/service-automation.png',
+    image: '/images/service-supply.png',
   },
 ]

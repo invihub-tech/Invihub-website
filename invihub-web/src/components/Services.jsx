@@ -11,15 +11,16 @@ function CapabilityCard({ current, active }) {
           {current.number} / 06
         </span>
       </div>
-      <div className="relative aspect-[16/10] overflow-hidden sm:aspect-[4/3] md:aspect-square">
+      <div className="relative aspect-[16/10] overflow-hidden bg-[#080809] sm:aspect-[4/3] md:aspect-[1.14]">
         {services.map((service, i) => (
           <img
             key={service.number}
             alt={service.title}
             src={service.image}
-            className={`absolute inset-0 h-full w-full object-cover grayscale contrast-110 transition-opacity duration-[650ms] ease-invi motion-reduce:transition-none ${
-              active === i ? 'opacity-100' : 'opacity-0'
+            className={`absolute inset-0 h-full w-full object-cover object-center grayscale contrast-[1.06] motion-reduce:transition-none ${
+              active === i ? 'opacity-100 scale-100' : 'opacity-0 scale-[1.035]'
             }`}
+            style={{ transition: 'opacity 750ms ease, transform 1050ms ease' }}
           />
         ))}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/55 to-transparent p-4 pt-12 sm:p-5 sm:pt-16">
