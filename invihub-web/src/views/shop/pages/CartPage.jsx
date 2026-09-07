@@ -42,7 +42,11 @@ export default function CartPage() {
                   <tr key={item.id} className="border-t border-white/10">
                     <td className="py-4">
                       <div className="flex items-center gap-3">
-                        <img src={item.product.images?.[0]?.url} alt="" className="h-16 w-16 rounded-md object-cover" />
+                        {item.product.images?.[0]?.url ? (
+                          <img src={item.product.images[0].url} alt="" className="h-16 w-16 rounded-md object-cover" />
+                        ) : (
+                          <div className="h-16 w-16 rounded-md bg-[#111]" />
+                        )}
                         <span>{item.product.name}</span>
                       </div>
                     </td>

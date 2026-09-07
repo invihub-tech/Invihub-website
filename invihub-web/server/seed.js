@@ -66,7 +66,6 @@ async function main() {
       isFeatured: true,
       isNew: true,
       isBestSeller: true,
-      image: '/images/hero-product.png',
       specs: [
         { name: 'Material', value: 'ABS' },
         { name: 'Input', value: '230V' },
@@ -89,7 +88,6 @@ async function main() {
       stock: 8,
       isFeatured: true,
       isNew: true,
-      image: '/images/service-automation.png',
       specs: [
         { name: 'Axes', value: '6 DOF' },
         { name: 'Use', value: 'Education / DIY' },
@@ -110,7 +108,6 @@ async function main() {
       stock: 3,
       isFeatured: true,
       isNew: false,
-      image: '/images/work-product.png',
       specs: [
         { name: 'Fingers', value: '5' },
         { name: 'Interface', value: 'Microcontroller' },
@@ -119,15 +116,17 @@ async function main() {
   ]
 
   for (const p of products) {
-    const { image, specs, ...data } = p
-    await prisma.product.upsert({
+    const { specs, ...data } = p
+    const product = await prisma.product.upsert({
       where: { slug: p.slug },
       update: data,
       create: {
         ...data,
-        images: { create: [{ url: image, alt: p.name, sortOrder: 0, isPrimary: true }] },
         specifications: { create: specs.map((s, i) => ({ ...s, sortOrder: i })) },
       },
+    })
+    await prisma.productImage.deleteMany({
+      where: { productId: product.id, url: { startsWith: '/images/' } },
     })
   }
 

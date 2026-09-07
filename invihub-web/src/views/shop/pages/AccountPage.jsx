@@ -125,7 +125,9 @@ export default function AccountPage() {
           {me.orders.map((o) => (
             <li key={o.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-white/10 px-4 py-4">
               <div>
-                <div className="font-medium">{o.orderNumber}</div>
+                <Link to={`/shop/account/orders/${encodeURIComponent(o.orderNumber)}?email=${encodeURIComponent(me.customer.email)}`} className="font-medium text-[#c5a059]">
+                  {o.orderNumber}
+                </Link>
                 <div className="text-sm text-white/45">
                   {o.orderStatus} · {o.paymentStatus} · {inr(o.total)}
                 </div>

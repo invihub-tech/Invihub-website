@@ -3,7 +3,7 @@ import { api, inr } from '../../../models/api'
 import { Stars } from '../../ui/Stars'
 
 export default function ProductCard({ product }) {
-  const img = product.images?.[0]?.url || '/images/hero-product.png'
+  const img = product.images?.[0]?.url
   const add = async (e) => {
     e.preventDefault()
     await api.addToCart(product.id, 1)
@@ -13,7 +13,11 @@ export default function ProductCard({ product }) {
   return (
     <article className="flex flex-col overflow-hidden rounded-md border border-white/12 bg-[#0c0c0c]">
       <Link to={`/shop/product/${product.slug}`} className="relative aspect-[4/3] overflow-hidden">
-        <img src={img} alt={product.name} className="h-full w-full object-cover" />
+        {img ? (
+          <img src={img} alt={product.name} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-[#111] text-xs text-white/30">No image</div>
+        )}
         {badge && (
           <span className="absolute left-2 top-2 rounded-full bg-[#c5a059] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-black">
             {badge}

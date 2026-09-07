@@ -51,8 +51,10 @@ export const api = {
   adminArchive: (id) => req(`/api/admin/products/${id}/archive`, { method: 'POST', body: {} }),
   adminRestore: (id) => req(`/api/admin/products/${id}/restore`, { method: 'POST', body: {} }),
   adminDuplicate: (id) => req(`/api/admin/products/${id}/duplicate`, { method: 'POST', body: {} }),
+  adminDeleteProductImage: (productId, body) => req(`/api/admin/products/${productId}/images`, { method: 'DELETE', body }),
   adminOrders: () => req('/api/admin/orders'),
   adminOrder: (id) => req(`/api/admin/orders/${id}`),
+  adminUpdateOrder: (id, body) => req(`/api/admin/orders/${id}`, { method: 'PUT', body }),
   adminInventory: (params = {}) => req(`/api/admin/inventory?${new URLSearchParams(params)}`),
   adminInventoryHistory: (id) => req(`/api/admin/inventory/${id}/history`),
   adminAdjustStock: (id, delta, reason, notes = '') => req(`/api/admin/inventory/${id}`, { method: 'POST', body: { delta, reason, notes } }),
@@ -64,6 +66,7 @@ export const api = {
     if (!res.ok) throw new Error(data.error || 'Upload failed')
     return data.url
   },
+  deleteUpload: (url) => req('/api/admin/upload', { method: 'DELETE', body: { url } }),
 }
 
 export function inr(n) {

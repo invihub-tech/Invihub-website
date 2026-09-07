@@ -5,6 +5,8 @@ const styles = {
   SHIPPED: 'bg-sky-400/15 text-sky-300',
   PENDING: 'bg-orange-400/15 text-orange-300',
   ACTIVE: 'bg-emerald-500/15 text-emerald-400',
+  DELIVERED: 'bg-emerald-500/15 text-emerald-400',
+  CANCELLED: 'bg-red-500/15 text-red-400',
   ARCHIVED: 'bg-white/10 text-white/45',
   FAILED: 'bg-red-500/15 text-red-400',
 }

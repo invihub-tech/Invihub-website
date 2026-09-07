@@ -18,3 +18,10 @@ export async function saveProductImage(file) {
   await fs.writeFile(path.join(uploadDir, name), file.buffer)
   return `/uploads/${name}`
 }
+
+export async function deleteProductImageFile(url) {
+  if (!url || typeof url !== 'string' || !url.startsWith('/uploads/')) return
+  const name = path.basename(url)
+  if (!name || name.includes('..')) return
+  await fs.unlink(path.join(uploadDir, name)).catch(() => {})
+}

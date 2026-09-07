@@ -2,6 +2,8 @@
  * End-to-end API checks for INVIHUB shop + admin.
  * Usage: node scripts/e2e.mjs
  */
+import '../server/src/lib/env.js'
+
 const API = process.env.API_URL || 'http://127.0.0.1:8787'
 const WEB = process.env.WEB_URL || 'http://127.0.0.1:5173'
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@invihub.com'
@@ -90,6 +92,10 @@ await check('List products', async () => {
   const { res, data } = await call('/api/products')
   assert(res.ok && Array.isArray(data) && data.length >= 3, 'expected seeded products')
   products = data
+  assert(
+    !data.some((p) => (p.images || []).some((im) => String(im.url || '').startsWith('/images/'))),
+    'dummy marketing images still on products',
+  )
 })
 
 await check('Search robotic', async () => {
@@ -180,7 +186,8 @@ await check('Cart add → checkout → pay', async () => {
 
 await check('COD checkout stays PENDING', async () => {
   jar.clear()
-  const product = products.find((p) => p.stock > 0) || products[0]
+  const listed = await call('/api/products')
+  const product = listed.data.find((p) => p.stock > 0) || listed.data[0]
   const add = await call('/api/cart', {
     method: 'POST',
     body: JSON.stringify({ productId: product.id, quantity: 1 }),
@@ -233,6 +240,18 @@ await check('Admin login + dashboard', async () => {
   assert(dash.res.ok && typeof dash.data.orders === 'number', 'dashboard failed')
   const orders = await call('/api/admin/orders')
   assert(orders.res.ok && Array.isArray(orders.data), 'admin orders failed')
+  if (orders.data[0]) {
+    const shipped = await call(`/api/admin/orders/${orders.data[0].id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ orderStatus: 'SHIPPED' }),
+    })
+    assert(shipped.res.ok && shipped.data.orderStatus === 'SHIPPED', shipped.data.error || 'status update failed')
+    const bad = await call(`/api/admin/orders/${orders.data[0].id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ orderStatus: 'NOPE' }),
+    })
+    assert(bad.res.status === 400, 'invalid status should 400')
+  }
   const inv = await call('/api/admin/inventory')
   assert(inv.res.ok && inv.data.kpis && Array.isArray(inv.data.products), 'inventory payload failed')
   const first = inv.data.products[0]

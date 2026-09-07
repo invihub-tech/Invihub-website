@@ -1,6 +1,7 @@
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { api, inr } from '../../../models/api'
+import OrderStatusTracker from '../../ui/OrderStatusTracker'
 
 export default function AccountOrderPage() {
   const { id } = useParams()
@@ -36,9 +37,10 @@ export default function AccountOrderPage() {
         ← Account
       </Link>
       <h1 className="mt-4 font-serif text-4xl">{order.orderNumber}</h1>
-      <p className="mt-2 text-white/50">
-        {order.orderStatus} · Payment {order.paymentStatus}
-      </p>
+      <p className="mt-2 text-white/50">Payment {order.paymentStatus}</p>
+      <div className="mt-6">
+        <OrderStatusTracker status={order.orderStatus} />
+      </div>
       <ul className="mt-8 space-y-3 border-t border-white/10 pt-6">
         {order.items.map((i) => (
           <li key={i.id} className="flex justify-between text-sm">

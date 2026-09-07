@@ -2,7 +2,7 @@ import { Router } from 'express'
 import multer from 'multer'
 import { prisma } from '../lib/prisma.js'
 import { requireAdmin, signAdmin, verifyPassword, assertLoginAllowed, recordLoginFailure, clearLoginFailures } from '../lib/auth.js'
-import { saveProductImage } from '../lib/storage.js'
+import { saveProductImage, deleteProductImageFile } from '../lib/storage.js'
 import { serializeProduct } from '../lib/serialize.js'
 import { saveSettings, getSettings } from '../lib/settings.js'
 import { ALL_PAYMENT_METHODS } from '../lib/payments/methods.js'
@@ -161,6 +161,11 @@ adminRouter.post('/upload', upload.single('file'), async (req, res) => {
   }
 })
 
+adminRouter.delete('/upload', async (req, res) => {
+  await deleteProductImageFile(req.body?.url)
+  res.json({ ok: true })
+})
+
 adminRouter.get('/products', async (_req, res) => {
   const rows = await prisma.product.findMany({
     orderBy: { updatedAt: 'desc' },
@@ -255,6 +260,22 @@ adminRouter.put('/products/:id', async (req, res) => {
   res.json(serializeProduct(product))
 })
 
+adminRouter.delete('/products/:id/images', async (req, res) => {
+  const productId = req.params.id
+  const imageId = req.body?.imageId
+  const url = String(req.body?.url || '')
+  const row = await prisma.productImage.findFirst({
+    where: imageId ? { id: String(imageId), productId } : { productId, url },
+  })
+  if (row) {
+    await prisma.productImage.delete({ where: { id: row.id } })
+    await deleteProductImageFile(row.url)
+  } else if (url) {
+    await deleteProductImageFile(url)
+  }
+  res.json({ ok: true })
+})
+
 adminRouter.post('/products/:id/archive', async (req, res) => {
   const product = await prisma.product.update({ where: { id: req.params.id }, data: { status: 'ARCHIVED' } })
   res.json(product)
@@ -326,9 +347,12 @@ adminRouter.get('/orders/:id', async (req, res) => {
 })
 
 adminRouter.put('/orders/:id', async (req, res) => {
+  const allowed = new Set(['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'])
+  const orderStatus = String(req.body?.orderStatus || '')
+  if (!allowed.has(orderStatus)) return res.status(400).json({ error: 'Invalid order status' })
   const row = await prisma.order.update({
     where: { id: req.params.id },
-    data: { orderStatus: req.body.orderStatus },
+    data: { orderStatus },
   })
   res.json(row)
 })

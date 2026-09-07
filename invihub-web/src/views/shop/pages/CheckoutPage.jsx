@@ -99,15 +99,24 @@ export default function CheckoutPage() {
             {!(cart.allowedPaymentMethods || []).length && (
               <p className="text-red-400">These products cannot be paid for together. Remove items that do not share a payment method.</p>
             )}
-            {(cart.allowedPaymentMethods || []).map((id) => {
-              const meta = PAYMENT_METHODS.find((m) => m.id === id)
-              return (
-                <label key={id} className="flex items-center gap-2 text-sm text-white/80">
-                  <input type="radio" name="paymentMethod" value={id} checked={form.paymentMethod === id} onChange={set('paymentMethod')} required />
-                  {meta?.label || id}
-                </label>
-              )
-            })}
+            <div className="grid gap-2">
+              {(cart.allowedPaymentMethods || []).map((id) => {
+                const meta = PAYMENT_METHODS.find((m) => m.id === id)
+                const on = form.paymentMethod === id
+                return (
+                  <label
+                    key={id}
+                    className={`flex cursor-pointer items-center gap-3 rounded-md border px-4 py-3 text-sm ${
+                      on ? 'border-[#c5a059] bg-[#c5a059]/10 text-white' : 'border-white/15 text-white/70'
+                    }`}
+                  >
+                    <input type="radio" name="paymentMethod" value={id} checked={on} onChange={set('paymentMethod')} className="sr-only" required />
+                    <span className={`h-3 w-3 shrink-0 rounded-full border ${on ? 'border-[#c5a059] bg-[#c5a059]' : 'border-white/30'}`} />
+                    {meta?.label || id}
+                  </label>
+                )
+              })}
+            </div>
           </fieldset>
           {err && <p className="text-red-400">{err}</p>}
           <button type="submit" className="btn-gold w-full" disabled={busy || !cart.cart.items.length || !form.paymentMethod}>

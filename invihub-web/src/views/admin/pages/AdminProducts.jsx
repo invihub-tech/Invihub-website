@@ -62,7 +62,11 @@ export default function AdminProducts() {
             {filtered.map((p) => (
               <tr key={p.id} className="border-t border-white/10">
                 <td className="py-3">
-                  <img src={p.images?.[0]?.url || '/images/hero-product.png'} alt="" className="h-10 w-10 rounded-md object-cover" />
+                  {p.images?.[0]?.url ? (
+                    <img src={p.images[0].url} alt="" className="h-10 w-10 rounded-md object-cover" />
+                  ) : (
+                    <div className="h-10 w-10 rounded-md bg-[#111]" />
+                  )}
                 </td>
                 <td>{p.name}</td>
                 <td>{p.sku}</td>

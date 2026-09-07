@@ -122,19 +122,48 @@ export default function AdminProductForm() {
             Upload images
             <input
               type="file"
+              multiple
               accept="image/png,image/jpeg,image/webp"
               className="hidden"
               onChange={async (e) => {
-                const file = e.target.files?.[0]
-                if (!file) return
-                const url = await api.upload(file)
-                set('images', [...(form.images || []), { url, alt: form.name }])
+                const files = [...(e.target.files || [])]
+                e.target.value = ''
+                if (!files.length) return
+                const uploaded = []
+                for (const file of files) {
+                  const url = await api.upload(file)
+                  uploaded.push({ url, alt: form.name })
+                }
+                setForm((f) => ({ ...f, images: [...(f.images || []), ...uploaded] }))
               }}
             />
           </label>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {(form.images || []).map((im) => (
-              <img key={im.url} src={im.url} alt="" className="h-16 w-full rounded-md object-cover" />
+          <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
+            {(form.images || []).map((im, i) => (
+              <div key={im.id || im.url + i} className="w-24 shrink-0">
+                <img src={im.url} alt="" className="h-20 w-24 rounded-md object-cover" />
+                <button
+                  type="button"
+                  className="mt-1 w-full rounded-md border border-white/20 py-1 text-xs text-red-400"
+                  onClick={async () => {
+                    try {
+                      if (id) {
+                        await api.adminDeleteProductImage(id, { imageId: im.id, url: im.url })
+                      } else {
+                        await api.deleteUpload(im.url)
+                      }
+                    } catch {
+                      /* still drop from form */
+                    }
+                    setForm((f) => ({
+                      ...f,
+                      images: (f.images || []).filter((_, idx) => idx !== i),
+                    }))
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
             ))}
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ShieldCheck, Truck, RotateCcw, BadgeCheck, Heart } from 'lucide-react'
 import { api, inr } from '../../../models/api'
@@ -11,6 +11,7 @@ export default function ProductDetail() {
   const [data, setData] = useState(null)
   const [qty, setQty] = useState(1)
   const [active, setActive] = useState(0)
+  const galleryRef = useRef(null)
   const [tab, setTab] = useState('desc')
   const [err, setErr] = useState('')
   const [loggedIn, setLoggedIn] = useState(false)
@@ -30,7 +31,7 @@ export default function ProductDetail() {
 
   if (!data) return <main className="px-6 py-20 text-white/50">Loading…</main>
   const p = data.product
-  const imgs = p.images?.length ? p.images : [{ url: '/images/hero-product.png' }]
+  const imgs = p.images || []
 
   const add = async () => {
     try {
@@ -60,16 +61,49 @@ export default function ProductDetail() {
       </div>
       <div className="mt-6 grid gap-10 lg:grid-cols-2">
         <div>
-          <div className="aspect-square overflow-hidden rounded-md border border-white/12">
-            <img src={imgs[active]?.url} alt={p.name} className="h-full w-full object-cover" />
-          </div>
-          <div className="mt-3 flex gap-2">
-            {imgs.map((im, i) => (
-              <button key={im.url + i} type="button" onClick={() => setActive(i)} className={`h-16 w-16 overflow-hidden rounded-md border ${i === active ? 'border-[#c5a059]' : 'border-white/15'}`}>
-                <img src={im.url} alt="" className="h-full w-full object-cover" />
-              </button>
-            ))}
-          </div>
+          {imgs.length === 0 && (
+            <div className="flex aspect-square items-center justify-center rounded-md border border-white/12 bg-[#111] text-sm text-white/35">No image</div>
+          )}
+          {imgs.length === 1 && (
+            <div className="aspect-square overflow-hidden rounded-md border border-white/12">
+              <img src={imgs[0].url} alt={p.name} className="h-full w-full object-cover" />
+            </div>
+          )}
+          {imgs.length > 1 && (
+            <div
+              ref={galleryRef}
+              className="flex snap-x snap-mandatory overflow-x-auto rounded-md border border-white/12"
+              onScroll={(e) => {
+                const el = e.currentTarget
+                const i = Math.round(el.scrollLeft / Math.max(el.clientWidth, 1))
+                if (i !== active) setActive(Math.min(imgs.length - 1, Math.max(0, i)))
+              }}
+            >
+              {imgs.map((im) => (
+                <div key={im.url} className="aspect-square w-full min-w-full shrink-0 snap-center">
+                  <img src={im.url} alt={p.name} className="h-full w-full object-cover" />
+                </div>
+              ))}
+            </div>
+          )}
+          {imgs.length > 1 && (
+            <div className="mt-3 flex gap-2 overflow-x-auto">
+              {imgs.map((im, i) => (
+                <button
+                  key={im.url + i}
+                  type="button"
+                  onClick={() => {
+                    setActive(i)
+                    const el = galleryRef.current
+                    if (el) el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' })
+                  }}
+                  className={`h-16 w-16 shrink-0 overflow-hidden rounded-md border ${i === active ? 'border-[#c5a059]' : 'border-white/15'}`}
+                >
+                  <img src={im.url} alt="" className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div>
           <h1 className="font-serif text-4xl">{p.name}</h1>
