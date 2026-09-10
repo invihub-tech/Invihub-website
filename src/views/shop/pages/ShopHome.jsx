@@ -11,7 +11,24 @@ const icons = {
 }
 
 export default function ShopHome() {
-  const { cats, featured, fresh, best } = useShopHome()
+  const { cats, featured, fresh, best, loading, error } = useShopHome()
+
+  if (error) {
+    return (
+      <main className="mx-auto max-w-xl px-4 py-20 text-center sm:px-6">
+        <p className="text-sm uppercase tracking-wider text-[#c5a059]">Shop unavailable</p>
+        <h1 className="mt-3 font-serif text-3xl">Cannot load catalogue</h1>
+        <p className="mt-4 text-white/55">{error}</p>
+        <button type="button" className="btn-gold mt-8 inline-flex w-auto" onClick={() => window.location.reload()}>
+          Retry
+        </button>
+      </main>
+    )
+  }
+
+  if (loading) {
+    return <main className="p-10 text-white/50">Loading…</main>
+  }
 
   return (
     <main>

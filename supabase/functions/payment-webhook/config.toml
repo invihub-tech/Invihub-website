@@ -1,0 +1,2 @@
+# Razorpay calls this without a Supabase user JWT.
+verify_jwt = false

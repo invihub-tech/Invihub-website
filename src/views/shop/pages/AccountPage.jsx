@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { api, inr } from '../../../models/api'
+import { findOrderAccessToken } from '../../../lib/orderAccess'
 
 export default function AccountPage() {
   const navigate = useNavigate()
@@ -8,6 +9,7 @@ export default function AccountPage() {
   const [tab, setTab] = useState('orders')
   const [email, setEmail] = useState('')
   const [orderNumber, setOrderNumber] = useState('')
+  const [accessCode, setAccessCode] = useState('')
   const [guestOrders, setGuestOrders] = useState(null)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -27,12 +29,22 @@ export default function AccountPage() {
       .catch(() => setMe(false))
   }, [])
 
+  useEffect(() => {
+    if (!orderNumber) return
+    const stored = findOrderAccessToken(orderNumber)
+    if (stored && !accessCode) setAccessCode(stored)
+  }, [orderNumber])
+
   const lookup = async (e) => {
     e.preventDefault()
     setBusy(true)
     setErr('')
     try {
-      setGuestOrders(await api.lookupOrders(email, orderNumber))
+      const token = accessCode || findOrderAccessToken(orderNumber)
+      if (!token) {
+        throw new Error('Order access code is required. Use the link or code from your order confirmation.')
+      }
+      setGuestOrders(await api.lookupOrders(email, orderNumber, token))
     } catch (ex) {
       setErr(ex.message)
       setGuestOrders(null)
@@ -55,16 +67,27 @@ export default function AccountPage() {
     return (
       <main className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
         <h1 className="font-serif text-4xl">My Account</h1>
-        <p className="mt-4 text-white/50">Look up a guest order with the checkout email and order number, or log in if you have an account.</p>
+        <p className="mt-4 text-white/50">
+          Look up a guest order with the checkout email, order number, and access code from your order confirmation (saved on this device after checkout), or log in if you have an account.
+        </p>
         <div className="mt-6 flex gap-3">
           <Link to="/shop/checkout" className="btn-gold w-auto">
             Login / Register
           </Link>
         </div>
-        <form onSubmit={lookup} className="mt-10 flex flex-col gap-3 sm:flex-row">
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Checkout email" className="field-input flex-1" />
-          <input required value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="Order number" className="field-input flex-1" />
-          <button type="submit" className="btn-gold-outline w-auto" disabled={busy}>
+        <form onSubmit={lookup} className="mt-10 flex flex-col gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Checkout email" className="field-input flex-1" />
+            <input required value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="Order number" className="field-input flex-1" />
+          </div>
+          <input
+            required
+            value={accessCode}
+            onChange={(e) => setAccessCode(e.target.value)}
+            placeholder="Order access code"
+            className="field-input w-full"
+          />
+          <button type="submit" className="btn-gold-outline w-auto self-start" disabled={busy}>
             {busy ? 'Looking up…' : 'Find order'}
           </button>
         </form>
@@ -75,7 +98,10 @@ export default function AccountPage() {
               <button
                 type="button"
                 className="flex w-full items-center justify-between rounded-md border border-white/10 px-4 py-4 text-left hover:border-[#c5a059]/50"
-                onClick={() => navigate(`/shop/account/orders/${encodeURIComponent(guestOrders.orderNumber)}?email=${encodeURIComponent(email)}`)}
+                onClick={() => {
+                  const q = new URLSearchParams({ email, access: accessCode || findOrderAccessToken(guestOrders.orderNumber) || '' })
+                  navigate(`/shop/account/orders/${encodeURIComponent(guestOrders.orderNumber)}?${q}`)
+                }}
               >
                 <span>
                   <span className="block font-medium">{guestOrders.orderNumber}</span>

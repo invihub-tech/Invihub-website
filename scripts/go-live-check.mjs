@@ -1,38 +1,50 @@
 /**
- * Prints which go-live env vars are set. Does not print secret values.
+ * Prints which Supabase frontend env vars are set. Does not print secret values.
  * Usage: node scripts/go-live-check.mjs
  */
-import '../server/src/lib/env.js'
+import { readFileSync, existsSync } from 'node:fs'
+import { resolve } from 'node:path'
 
-const present = (k) => {
-  const v = String(process.env[k] || '').trim()
-  return v.length > 0 && !v.startsWith('file:')
+function loadEnvFile(name) {
+  const p = resolve(process.cwd(), name)
+  if (!existsSync(p)) return
+  for (const line of readFileSync(p, 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/)
+    if (!m) continue
+    if (process.env[m[1]] != null) continue
+    let v = m[2].trim()
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1)
+    process.env[m[1]] = v
+  }
 }
 
+loadEnvFile('.env')
+loadEnvFile('.env.local')
+
+const present = (k) => String(process.env[k] || '').trim().length > 0
+
 const rows = [
-  ['DATABASE_URL', present('DATABASE_URL') && process.env.DATABASE_URL.startsWith('postgresql'), 'Postgres URI (pooler 6543)'],
-  ['DIRECT_URL', present('DIRECT_URL') && String(process.env.DIRECT_URL).startsWith('postgresql'), 'Postgres URI (direct 5432)'],
-  ['JWT_SECRET', String(process.env.JWT_SECRET || '').length >= 24 && process.env.JWT_SECRET !== 'change-this-dev-secret', '24+ chars, not the demo secret'],
-  ['ADMIN_PASSWORD', String(process.env.ADMIN_PASSWORD || '').length >= 12, '12+ characters'],
-  ['ALLOWED_ORIGINS', String(process.env.ALLOWED_ORIGINS || '').includes('http'), 'localhost for dev; https://your-domain in production'],
-  ['VITE_ADMIN_PATH_KEY', Boolean(process.env.VITE_ADMIN_PATH_KEY || process.env.ADMIN_PATH_KEY), 'Must match ADMIN_PATH_KEY at build time'],
+  ['VITE_SUPABASE_URL', present('VITE_SUPABASE_URL') && String(process.env.VITE_SUPABASE_URL).includes('supabase'), 'Project URL'],
+  ['VITE_SUPABASE_ANON_KEY', present('VITE_SUPABASE_ANON_KEY') && String(process.env.VITE_SUPABASE_ANON_KEY).length > 20, 'Anon/public key only'],
+  ['VITE_ADMIN_PATH_KEY', present('VITE_ADMIN_PATH_KEY'), 'Admin URL segment'],
+  ['PAYMENT_MODE', !present('PAYMENT_MODE') || process.env.PAYMENT_MODE === 'mock' || process.env.ALLOW_MOCK_PAYMENTS === 'true', 'Keep mock for test; live needs secrets in Edge Functions'],
 ]
 
 let ok = true
-console.log('Go-live check (values hidden)\n')
+console.log('Go-live check — Supabase frontend (values hidden)\n')
 for (const [key, pass, hint] of rows) {
   console.log(`${pass ? 'OK   ' : 'NEED '} ${key} — ${hint}`)
   if (!pass) ok = false
 }
 console.log('')
-if (!ok) {
-  console.log('Next: create a Supabase project → Settings → Database.')
-  console.log('Put Direct (5432) in DIRECT_URL and pooler (6543) in DATABASE_URL.')
-  console.log('Then: npm run db:generate && npm run db:push && npm run db:seed')
-  process.exit(1)
-}
-console.log('Database URLs look like Postgres. Run:')
-console.log('  npm run db:generate')
-console.log('  npm run db:push')
-console.log('  npm run db:seed')
-console.log('  npm run dev')
+console.log('Also configure (Dashboard / secrets, not VITE_*):')
+console.log('  - Auth: confirm email OFF for test signup flow')
+console.log('  - Redirect URLs for your Cloudflare + localhost origins')
+console.log('  - Edge secrets: ALLOWED_ORIGINS, PAYMENT_MODE, ALLOW_MOCK_PAYMENTS')
+console.log('  - Apply supabase/migrations + optional seed.sql')
+console.log('  - Promote first admin via supabase/first-admin.sql')
+console.log('  - Deploy shop-api + payment-webhook functions')
+console.log('  - SPA fallback (public/_redirects or Workers not_found_handling)')
+console.log('')
+if (!ok) process.exit(1)
+console.log('Frontend env looks present. Run: npm run build && npm run preview')

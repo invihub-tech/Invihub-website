@@ -60,7 +60,11 @@ export default function CheckoutPage() {
         await api.confirmPay(created.orderId)
       }
       window.dispatchEvent(new Event('invi-cart'))
-      navigate(`/shop/order-success?order=${encodeURIComponent(created.orderNumber)}&pay=${encodeURIComponent(created.paymentMethod)}`)
+      const access = created.accessToken ? `&access=${encodeURIComponent(created.accessToken)}` : ''
+      const emailQ = form.email ? `&email=${encodeURIComponent(form.email)}` : ''
+      navigate(
+        `/shop/order-success?order=${encodeURIComponent(created.orderNumber)}&pay=${encodeURIComponent(created.paymentMethod)}${access}${emailQ}`,
+      )
     } catch (ex) {
       setErr(ex.message)
     } finally {

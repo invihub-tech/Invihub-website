@@ -1,0 +1,2 @@
+# Anon key Bearer is required; public catalogue + guest cart use the anon JWT.
+verify_jwt = true

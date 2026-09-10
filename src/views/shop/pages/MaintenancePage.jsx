@@ -10,9 +10,9 @@ export default function MaintenancePage() {
       extra={
         <p className="mt-6 text-sm text-white/45">
           Status:{' '}
-          <a className="text-[#c5a059] underline" href="/api/health" target="_blank" rel="noreferrer">
-            /api/health
-          </a>
+          <button type="button" className="text-[#c5a059] underline" onClick={() => window.location.reload()}>
+            Retry health check
+          </button>
         </p>
       }
     />

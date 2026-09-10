@@ -4,42 +4,26 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n api,web -c yellow,cyan \"npm run dev:api\" \"vite\"",
-    "dev:api": "node --watch server/src/index.js",
+    "dev": "vite",
     "dev:web": "vite",
-    "db:generate": "prisma generate --schema server/prisma/schema.prisma",
-    "db:push": "prisma db push --schema server/prisma/schema.prisma",
-    "db:seed": "node server/seed.js",
-    "go-live-check": "node scripts/go-live-check.mjs",
+    "dev:api:legacy": "node --watch server/src/index.js",
     "build": "vite build",
     "preview": "vite preview",
-    "test:e2e": "node scripts/e2e.mjs"
-  },
-  "prisma": {
-    "schema": "server/prisma/schema.prisma"
+    "test:e2e": "node scripts/e2e.mjs",
+    "go-live-check": "node scripts/go-live-check.mjs"
   },
   "dependencies": {
-    "@prisma/client": "^6.16.2",
-    "bcryptjs": "^3.0.2",
-    "cookie-parser": "^1.4.7",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.2",
-    "express": "^5.1.0",
-    "jsonwebtoken": "^9.0.2",
+    "@supabase/supabase-js": "^2.49.1",
     "lucide-react": "^1.40.0",
-    "multer": "^2.0.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-router-dom": "^7.18.3",
-    "zod": "^4.1.8"
+    "react-router-dom": "^7.18.3"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.0.2",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
-    "concurrently": "^9.2.1",
-    "prisma": "^6.16.2",
     "vite": "^7.1.5"
   }
 }

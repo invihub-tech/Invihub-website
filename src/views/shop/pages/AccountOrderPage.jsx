@@ -1,6 +1,7 @@
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { api, inr } from '../../../models/api'
+import { findOrderAccessToken, saveOrderAccess } from '../../../lib/orderAccess'
 import OrderStatusTracker from '../../ui/OrderStatusTracker'
 import { ApiStatusScreen } from '../../ui/ApiStatusScreen'
 
@@ -8,6 +9,7 @@ export default function AccountOrderPage() {
   const { id } = useParams()
   const [params] = useSearchParams()
   const email = params.get('email') || ''
+  const access = params.get('access') || findOrderAccessToken(id) || ''
   const [order, setOrder] = useState(null)
   const [err, setErr] = useState('')
   const [pageStatus, setPageStatus] = useState(null)
@@ -16,25 +18,56 @@ export default function AccountOrderPage() {
     setErr('')
     setPageStatus(null)
     setOrder(null)
-    if (!email) {
-      setErr('Open this page from My Account after looking up your email.')
-      return
+
+    // Registered customers: try account order first (auth), then guest token path
+    const tryGuest = () => {
+      if (!email || !access) {
+        setErr('Open this page from your order confirmation link, or look up the order with your access code.')
+        return
+      }
+      api
+        .guestOrder(id, email, access)
+        .then((o) => {
+          saveOrderAccess(o.orderNumber || id, { token: access, email })
+          setOrder(o)
+        })
+        .catch((e) => {
+          if (e.status === 401 || e.status === 403 || e.status === 404 || e.status >= 500 || e.status === 0) {
+            setPageStatus(e.status ?? 500)
+            return
+          }
+          setErr(e.message)
+        })
     }
+
     api
-      .guestOrder(id, email)
-      .then(setOrder)
-      .catch((e) => {
-        if (e.status === 401 || e.status === 403 || e.status === 404 || e.status >= 500 || e.status === 0) {
-          setPageStatus(e.status ?? 500)
+      .customerMe()
+      .then((me) => {
+        const mine = (me.orders || []).find((o) => o.id === id || o.orderNumber === id)
+        if (mine) {
+          // Fetch public shape via guest endpoint only when we have token; otherwise show list fields
+          if (email && access) {
+            tryGuest()
+            return
+          }
+          setOrder({
+            ...mine,
+            orderNumber: mine.orderNumber,
+            paymentStatus: mine.paymentStatus,
+            orderStatus: mine.orderStatus,
+            items: mine.items || [],
+            total: mine.total,
+          })
           return
         }
-        setErr(e.message)
+        tryGuest()
       })
+      .catch(() => tryGuest())
   }
 
   useEffect(() => {
     load()
-  }, [id, email])
+  }, [id, email, access])
 
   if (pageStatus != null) return <ApiStatusScreen status={pageStatus} onRetry={load} />
 
@@ -67,7 +100,7 @@ export default function AccountOrderPage() {
             <span>
               {i.name} × {i.quantity}
             </span>
-            <span>{inr(i.lineTotal)}</span>
+            <span>{inr(i.lineTotal ?? i.line_total ?? 0)}</span>
           </li>
         ))}
       </ul>

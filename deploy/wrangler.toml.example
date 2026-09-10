@@ -1,0 +1,14 @@
+# Cloudflare Workers (Static Assets) SPA fallback example
+# Inspect your actual project before changing remote settings.
+# Do not deploy without explicit approval.
+
+name = "invihub-web"
+compatibility_date = "2024-09-01"
+
+# [assets]
+# directory = "./dist"
+# not_found_handling = "single-page-application"
+
+# If using Wrangler assets:
+# npx wrangler deploy
+# Ensure not_found_handling / SPA mode so /shop and /invihub/admin/* work on refresh.
