@@ -1,16 +1,36 @@
+const API = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+
+export class ApiError extends Error {
+  constructor(message, status = 0) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
 async function req(path, options = {}) {
-  const res = await fetch(path, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    ...options,
-    body: options.body && typeof options.body !== 'string' ? JSON.stringify(options.body) : options.body,
-  })
+  let res
+  try {
+    res = await fetch(`${API}${path}`, {
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      ...options,
+      body: options.body && typeof options.body !== 'string' ? JSON.stringify(options.body) : options.body,
+    })
+  } catch (e) {
+    window.dispatchEvent(new Event('invi-network-error'))
+    throw new ApiError(e.message || 'Network error', 0)
+  }
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.error || res.statusText)
+  if (res.status === 503 || data.maintenance) {
+    window.dispatchEvent(new Event('invi-maintenance'))
+  }
+  if (!res.ok) throw new ApiError(data.error || res.statusText, res.status)
   return data
 }
 
 export const api = {
+  health: () => req('/api/health'),
   categories: () => req('/api/categories'),
   products: (params = {}) => req(`/api/products?${new URLSearchParams(params)}`),
   product: (slug) => req(`/api/products/${slug}`),
@@ -24,7 +44,7 @@ export const api = {
   confirmPay: (orderId) => req('/api/checkout/confirm', { method: 'POST', body: { orderId } }),
   createPayment: (orderId) => req('/api/payments/create', { method: 'POST', body: { orderId } }),
   order: (id) => req(`/api/checkout/orders/${id}`),
-  lookupOrders: (email) => req('/api/orders/lookup', { method: 'POST', body: { email } }),
+  lookupOrders: (email, orderNumber) => req('/api/orders/lookup', { method: 'POST', body: { email, orderNumber } }),
   guestOrder: (id, email) => req(`/api/orders/${encodeURIComponent(id)}?email=${encodeURIComponent(email)}`),
   customerRegister: (body) => req('/api/customers/register', { method: 'POST', body }),
   customerLogin: (email, password) => req('/api/customers/login', { method: 'POST', body: { email, password } }),
@@ -61,9 +81,9 @@ export const api = {
   upload: async (file) => {
     const fd = new FormData()
     fd.append('file', file)
-    const res = await fetch('/api/admin/upload', { method: 'POST', credentials: 'include', body: fd })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error || 'Upload failed')
+    const res = await fetch(`${API}/api/admin/upload`, { method: 'POST', credentials: 'include', body: fd })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new ApiError(data.error || 'Upload failed', res.status)
     return data.url
   },
   deleteUpload: (url) => req('/api/admin/upload', { method: 'DELETE', body: { url } }),

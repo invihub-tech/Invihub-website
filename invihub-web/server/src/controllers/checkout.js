@@ -8,6 +8,7 @@ import { PaymentService } from '../lib/payments/index.js'
 import { fulfillPaidOrder, reserveOrderStock } from '../lib/fulfill.js'
 import { optionalCustomer } from '../lib/auth.js'
 import { intersectPaymentMethods, ONLINE_METHODS } from '../lib/payments/methods.js'
+import { hashCheckoutToken, mockPaymentsAllowed, orderPlacedByRequest } from '../lib/security.js'
 
 export const checkoutRouter = Router()
 
@@ -75,6 +76,7 @@ checkoutRouter.post('/', optionalCustomer, async (req, res) => {
       ...totals,
       paymentStatus: 'PENDING',
       orderStatus: 'PENDING',
+      checkoutTokenHash: hashCheckoutToken(req._cartToken || req.cookies?.cart_token || ''),
       shippingName: parsed.data.name,
       shippingEmail: parsed.data.email,
       shippingPhone: parsed.data.phone,
@@ -132,18 +134,20 @@ checkoutRouter.post('/', optionalCustomer, async (req, res) => {
   })
 })
 
-checkoutRouter.post('/confirm', async (req, res) => {
+checkoutRouter.post('/confirm', optionalCustomer, async (req, res) => {
   const { orderId } = req.body || {}
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: { items: true, payments: true, customer: true },
   })
   if (!order) return res.status(404).json({ error: 'Order not found' })
+  if (!orderPlacedByRequest(req, order)) return res.status(403).json({ error: 'Forbidden' })
   if (order.paymentStatus === 'PAID') return res.json({ orderNumber: order.orderNumber, alreadyPaid: true })
   const method = order.payments?.[0]?.method
   if (!ONLINE_METHODS.has(method)) {
     return res.status(400).json({ error: 'This order does not require online confirmation' })
   }
+  if (!mockPaymentsAllowed()) return res.status(503).json({ error: 'Online confirm is only available in mock mode' })
 
   const result = await PaymentService.confirm({ order })
   if (result.status !== 'SUCCESSFUL') return res.status(402).json({ error: 'Payment not successful' })
@@ -152,11 +156,12 @@ checkoutRouter.post('/confirm', async (req, res) => {
   res.json(fulfilled)
 })
 
-checkoutRouter.get('/orders/:id', async (req, res) => {
+checkoutRouter.get('/orders/:id', optionalCustomer, async (req, res) => {
   const order = await prisma.order.findFirst({
     where: { OR: [{ id: req.params.id }, { orderNumber: req.params.id }] },
     include: { items: true, payments: true },
   })
   if (!order) return res.status(404).json({ error: 'Not found' })
+  if (!orderPlacedByRequest(req, order)) return res.status(403).json({ error: 'Forbidden' })
   res.json(order)
 })

@@ -1,4 +1,4 @@
-import { Link, Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   Package,
@@ -14,7 +14,10 @@ import { useAdminGate } from '../../../controllers/useAdminGate'
 export default function AdminShell() {
   const ok = useAdminGate()
   const navigate = useNavigate()
+  const location = useLocation()
+  const atAdminRoot = location.pathname.replace(/\/$/, '') === adminBase.replace(/\/$/, '')
 
+  if (atAdminRoot) return <Navigate to={`${adminBase}/login`} replace />
   if (ok === null) return <div className="min-h-screen bg-[#0a0a0a] p-10 text-white/50">Loading…</div>
   if (!ok) return <Navigate to={`${adminBase}/login`} replace />
 

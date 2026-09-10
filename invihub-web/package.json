@@ -10,6 +10,7 @@
     "db:generate": "prisma generate --schema server/prisma/schema.prisma",
     "db:push": "prisma db push --schema server/prisma/schema.prisma",
     "db:seed": "node server/seed.js",
+    "go-live-check": "node scripts/go-live-check.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "test:e2e": "node scripts/e2e.mjs"

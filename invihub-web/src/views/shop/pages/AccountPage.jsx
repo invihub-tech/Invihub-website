@@ -7,6 +7,7 @@ export default function AccountPage() {
   const [me, setMe] = useState(null)
   const [tab, setTab] = useState('orders')
   const [email, setEmail] = useState('')
+  const [orderNumber, setOrderNumber] = useState('')
   const [guestOrders, setGuestOrders] = useState(null)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -31,10 +32,10 @@ export default function AccountPage() {
     setBusy(true)
     setErr('')
     try {
-      setGuestOrders(await api.lookupOrders(email))
+      setGuestOrders(await api.lookupOrders(email, orderNumber))
     } catch (ex) {
       setErr(ex.message)
-      setGuestOrders([])
+      setGuestOrders(null)
     } finally {
       setBusy(false)
     }
@@ -54,7 +55,7 @@ export default function AccountPage() {
     return (
       <main className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
         <h1 className="font-serif text-4xl">My Account</h1>
-        <p className="mt-4 text-white/50">Look up guest orders with the checkout email, or log in if you have an account.</p>
+        <p className="mt-4 text-white/50">Look up a guest order with the checkout email and order number, or log in if you have an account.</p>
         <div className="mt-6 flex gap-3">
           <Link to="/shop/checkout" className="btn-gold w-auto">
             Login / Register
@@ -62,31 +63,29 @@ export default function AccountPage() {
         </div>
         <form onSubmit={lookup} className="mt-10 flex flex-col gap-3 sm:flex-row">
           <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Checkout email" className="field-input flex-1" />
+          <input required value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="Order number" className="field-input flex-1" />
           <button type="submit" className="btn-gold-outline w-auto" disabled={busy}>
-            {busy ? 'Looking up…' : 'Find orders'}
+            {busy ? 'Looking up…' : 'Find order'}
           </button>
         </form>
         {err && <p className="mt-3 text-red-400">{err}</p>}
         {guestOrders && (
           <ul className="mt-8 space-y-3">
-            {guestOrders.length === 0 && <li className="text-white/45">No orders found for that email.</li>}
-            {guestOrders.map((o) => (
-              <li key={o.id}>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-md border border-white/10 px-4 py-4 text-left hover:border-[#c5a059]/50"
-                  onClick={() => navigate(`/shop/account/orders/${encodeURIComponent(o.orderNumber)}?email=${encodeURIComponent(email)}`)}
-                >
-                  <span>
-                    <span className="block font-medium">{o.orderNumber}</span>
-                    <span className="text-sm text-white/45">
-                      {o.orderStatus} · {o.paymentStatus}
-                    </span>
+            <li>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between rounded-md border border-white/10 px-4 py-4 text-left hover:border-[#c5a059]/50"
+                onClick={() => navigate(`/shop/account/orders/${encodeURIComponent(guestOrders.orderNumber)}?email=${encodeURIComponent(email)}`)}
+              >
+                <span>
+                  <span className="block font-medium">{guestOrders.orderNumber}</span>
+                  <span className="text-sm text-white/45">
+                    {guestOrders.orderStatus} · {guestOrders.paymentStatus}
                   </span>
-                  <span className="text-[#c5a059]">{inr(o.total)}</span>
-                </button>
-              </li>
-            ))}
+                </span>
+                <span className="text-[#c5a059]">{inr(guestOrders.total)}</span>
+              </button>
+            </li>
           </ul>
         )}
       </main>

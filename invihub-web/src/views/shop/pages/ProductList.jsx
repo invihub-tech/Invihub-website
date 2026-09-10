@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { api } from '../../../models/api'
 import ProductCard from '../components/ProductCard'
+import { ApiStatusScreen } from '../../ui/ApiStatusScreen'
+import NotFoundPage from './NotFoundPage'
 
 export default function ProductList({ categoryMode = false }) {
   const { slug } = useParams()
@@ -10,6 +12,8 @@ export default function ProductList({ categoryMode = false }) {
   const [cats, setCats] = useState([])
   const [items, setItems] = useState([])
   const [cat, setCat] = useState(null)
+  const [pageStatus, setPageStatus] = useState(null)
+  const [catMissing, setCatMissing] = useState(false)
 
   const query = useMemo(
     () => ({
@@ -35,11 +39,25 @@ export default function ProductList({ categoryMode = false }) {
     if (query.maxPrice) p.maxPrice = query.maxPrice
     if (query.stock) p.stock = query.stock
     if (query.sort) p.sort = query.sort
-    api.products(p).then(setItems).catch(() => setItems([]))
+    api
+      .products(p)
+      .then((list) => {
+        setItems(list)
+        setPageStatus(null)
+      })
+      .catch((e) => {
+        setItems([])
+        setPageStatus(e.status ?? 500)
+      })
     if (categoryMode && slug) {
-      api.categories().then((list) => setCat(list.find((c) => c.slug === slug) || null))
+      api.categories().then((list) => {
+        const found = list.find((c) => c.slug === slug) || null
+        setCat(found)
+        setCatMissing(!found)
+      })
     } else {
       setCat(null)
+      setCatMissing(false)
     }
   }, [query, categoryMode, slug])
 
@@ -49,6 +67,11 @@ export default function ProductList({ categoryMode = false }) {
     else next.set(k, v)
     setParams(next)
   }
+
+  if (pageStatus != null && pageStatus !== 404) {
+    return <ApiStatusScreen status={pageStatus} onRetry={() => window.location.reload()} />
+  }
+  if (categoryMode && catMissing) return <NotFoundPage />
 
   return (
     <main className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[240px_1fr]">

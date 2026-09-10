@@ -45,7 +45,7 @@ customersRouter.post('/register', optionalCustomer, async (req, res) => {
   const token = signCustomer(customer)
   setCustomerCookie(res, token)
   await attachCart(req, res, customer.id)
-  res.json({ customer: publicCustomer(customer), token })
+  res.json({ customer: publicCustomer(customer) })
 })
 
 customersRouter.post('/login', async (req, res) => {
@@ -58,7 +58,7 @@ customersRouter.post('/login', async (req, res) => {
   const token = signCustomer(customer)
   setCustomerCookie(res, token)
   await attachCart(req, res, customer.id)
-  res.json({ customer: publicCustomer(customer), token })
+  res.json({ customer: publicCustomer(customer) })
 })
 
 customersRouter.post('/logout', (_req, res) => {

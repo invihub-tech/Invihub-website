@@ -1,12 +1,13 @@
 import { prisma } from '../lib/prisma.js'
 import { randomUUID } from 'node:crypto'
 import { parsePaymentMethods } from './payments/methods.js'
+import { cookieOpts } from './security.js'
 
 export async function getOrCreateCart(req, res) {
   let token = req._cartToken || req.cookies?.cart_token
   if (!token) {
     token = randomUUID()
-    res.cookie('cart_token', token, { httpOnly: true, sameSite: 'lax', maxAge: 1000 * 60 * 60 * 24 * 30, path: '/' })
+    res.cookie('cart_token', token, cookieOpts(1000 * 60 * 60 * 24 * 30))
   }
   req._cartToken = token
   let cart = await prisma.cart.findUnique({

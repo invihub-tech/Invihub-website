@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma.js'
+import { cookieOpts } from './security.js'
 
 const SECRET = process.env.JWT_SECRET || 'dev-secret'
 const loginAttempts = new Map()
@@ -63,7 +64,7 @@ export function readCustomerToken(req) {
 }
 
 export function setCustomerCookie(res, token) {
-  res.cookie('customer_token', token, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 30 * 24 * 60 * 60 * 1000 })
+  res.cookie('customer_token', token, cookieOpts(30 * 24 * 60 * 60 * 1000))
 }
 
 export function requireCustomer(req, res, next) {
@@ -95,7 +96,9 @@ export function requireAdmin(req, res, next) {
   const token = readToken(req)
   if (!token) return res.status(401).json({ error: 'Unauthorized' })
   try {
-    req.admin = jwt.verify(token, SECRET)
+    const payload = jwt.verify(token, SECRET)
+    if (payload.role !== 'admin') return res.status(401).json({ error: 'Unauthorized' })
+    req.admin = payload
     next()
   } catch {
     res.status(401).json({ error: 'Unauthorized' })

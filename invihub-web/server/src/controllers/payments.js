@@ -2,13 +2,16 @@ import { Router } from 'express'
 import { prisma } from '../lib/prisma.js'
 import { PaymentService } from '../lib/payments/index.js'
 import { fulfillPaidOrder } from '../lib/fulfill.js'
+import { optionalCustomer } from '../lib/auth.js'
+import { mockPaymentsAllowed, orderPlacedByRequest } from '../lib/security.js'
 
 export const paymentsRouter = Router()
 
-paymentsRouter.post('/create', async (req, res) => {
+paymentsRouter.post('/create', optionalCustomer, async (req, res) => {
   const { orderId } = req.body || {}
   const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true, payments: true } })
   if (!order) return res.status(404).json({ error: 'Order not found' })
+  if (!orderPlacedByRequest(req, order)) return res.status(403).json({ error: 'Forbidden' })
   if (order.paymentStatus === 'PAID') {
     return res.json({ orderId: order.id, orderNumber: order.orderNumber, alreadyPaid: true })
   }
@@ -31,9 +34,12 @@ paymentsRouter.post('/create', async (req, res) => {
 })
 
 paymentsRouter.post('/webhook', async (req, res) => {
-  const raw = JSON.stringify(req.body || {})
-  const sig = req.headers['x-razorpay-signature'] || req.headers['x-payment-signature'] || ''
-  if (!PaymentService.verifyWebhook(raw, sig)) {
+  if (mockPaymentsAllowed() || process.env.PAYMENT_MODE !== 'live') {
+    return res.status(400).json({ error: 'Invalid webhook signature' })
+  }
+  const raw = req.rawBody || ''
+  const sig = req.headers['x-razorpay-signature'] || ''
+  if (!raw || !PaymentService.verifyWebhook(raw, sig)) {
     return res.status(400).json({ error: 'Invalid webhook signature' })
   }
   const orderId = req.body?.orderId || req.body?.payload?.payment?.entity?.notes?.orderId
@@ -43,8 +49,11 @@ paymentsRouter.post('/webhook', async (req, res) => {
     include: { items: true, payments: true, customer: true },
   })
   if (!order) return res.status(404).json({ error: 'Order not found' })
-  const result = await PaymentService.confirm({ order })
-  if (result.status !== 'SUCCESSFUL') return res.status(402).json({ error: 'Payment not successful' })
-  const fulfilled = await fulfillPaidOrder(order, req, res, result)
+  const paymentId = req.body?.payload?.payment?.entity?.id || `rzp_${order.id}`
+  const fulfilled = await fulfillPaidOrder(order, null, null, {
+    status: 'SUCCESSFUL',
+    gatewayPaymentId: paymentId,
+    method: 'RAZORPAY',
+  })
   res.json(fulfilled)
 })

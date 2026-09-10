@@ -4,8 +4,8 @@ import { hashPassword } from './auth.js'
 export async function syncAdminFromEnv() {
   const email = String(process.env.ADMIN_EMAIL || 'admin@invihub.com').trim().toLowerCase()
   const password = String(process.env.ADMIN_PASSWORD || 'invihub-admin')
-  if (!email.includes('@') || password.length < 4) {
-    console.warn('ADMIN_EMAIL / ADMIN_PASSWORD in .env look invalid; skip admin sync')
+  if (!email.includes('@') || password.length < 12) {
+    console.warn('ADMIN_EMAIL / ADMIN_PASSWORD in .env look invalid (password must be 12+ characters); skip admin sync')
     return
   }
   const passwordHash = await hashPassword(password)

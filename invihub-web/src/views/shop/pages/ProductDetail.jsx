@@ -4,11 +4,13 @@ import { ShieldCheck, Truck, RotateCcw, BadgeCheck, Heart } from 'lucide-react'
 import { api, inr } from '../../../models/api'
 import ProductCard from '../components/ProductCard'
 import { Stars } from '../../ui/Stars'
+import { ApiStatusScreen } from '../../ui/ApiStatusScreen'
 
 export default function ProductDetail() {
   const { slug } = useParams()
   const navigate = useNavigate()
   const [data, setData] = useState(null)
+  const [pageStatus, setPageStatus] = useState(null)
   const [qty, setQty] = useState(1)
   const [active, setActive] = useState(0)
   const galleryRef = useRef(null)
@@ -17,8 +19,16 @@ export default function ProductDetail() {
   const [loggedIn, setLoggedIn] = useState(false)
   const [wished, setWished] = useState(false)
 
-  useEffect(() => {
-    api.product(slug).then(setData).catch(() => setData(null))
+  const load = () => {
+    setData(null)
+    setPageStatus(null)
+    api
+      .product(slug)
+      .then((d) => {
+        setData(d)
+        setPageStatus(null)
+      })
+      .catch((e) => setPageStatus(e.status ?? 500))
     api
       .customerMe()
       .then(async () => {
@@ -27,8 +37,13 @@ export default function ProductDetail() {
         setWished(list.some((w) => w.product?.slug === slug))
       })
       .catch(() => setLoggedIn(false))
+  }
+
+  useEffect(() => {
+    load()
   }, [slug])
 
+  if (pageStatus != null) return <ApiStatusScreen status={pageStatus} onRetry={load} />
   if (!data) return <main className="px-6 py-20 text-white/50">Loading…</main>
   const p = data.product
   const imgs = p.images || []

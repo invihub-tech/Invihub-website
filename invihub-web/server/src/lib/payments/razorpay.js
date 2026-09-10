@@ -16,6 +16,7 @@ export const RazorpayProvider = {
         amount: Math.round(order.total * 100),
         currency: 'INR',
         receipt: order.orderNumber,
+        notes: { orderId: order.id },
       }),
     })
     const data = await res.json()
@@ -31,7 +32,12 @@ export const RazorpayProvider = {
     throw Object.assign(new Error('Use webhook / signature verify'), { status: 400 })
   },
   verifyWebhook(rawBody, signature) {
-    const expected = crypto.createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET).update(rawBody).digest('hex')
-    return expected === signature
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET || ''
+    if (!rawBody || !signature || !secret) return false
+    const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex')
+    const a = Buffer.from(expected)
+    const b = Buffer.from(String(signature))
+    if (a.length !== b.length) return false
+    return crypto.timingSafeEqual(a, b)
   },
 }

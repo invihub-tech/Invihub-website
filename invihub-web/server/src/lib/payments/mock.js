@@ -19,6 +19,6 @@ export const MockPaymentProvider = {
     }
   },
   verifyWebhook() {
-    return true
+    return false
   },
 }

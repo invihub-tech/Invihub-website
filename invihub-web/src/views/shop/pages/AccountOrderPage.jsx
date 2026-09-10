@@ -2,6 +2,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { api, inr } from '../../../models/api'
 import OrderStatusTracker from '../../ui/OrderStatusTracker'
+import { ApiStatusScreen } from '../../ui/ApiStatusScreen'
 
 export default function AccountOrderPage() {
   const { id } = useParams()
@@ -9,14 +10,33 @@ export default function AccountOrderPage() {
   const email = params.get('email') || ''
   const [order, setOrder] = useState(null)
   const [err, setErr] = useState('')
+  const [pageStatus, setPageStatus] = useState(null)
 
-  useEffect(() => {
+  const load = () => {
+    setErr('')
+    setPageStatus(null)
+    setOrder(null)
     if (!email) {
       setErr('Open this page from My Account after looking up your email.')
       return
     }
-    api.guestOrder(id, email).then(setOrder).catch((e) => setErr(e.message))
+    api
+      .guestOrder(id, email)
+      .then(setOrder)
+      .catch((e) => {
+        if (e.status === 401 || e.status === 403 || e.status === 404 || e.status >= 500 || e.status === 0) {
+          setPageStatus(e.status ?? 500)
+          return
+        }
+        setErr(e.message)
+      })
+  }
+
+  useEffect(() => {
+    load()
   }, [id, email])
+
+  if (pageStatus != null) return <ApiStatusScreen status={pageStatus} onRetry={load} />
 
   if (err) {
     return (

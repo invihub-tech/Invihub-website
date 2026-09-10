@@ -6,6 +6,8 @@ import { saveProductImage, deleteProductImageFile } from '../lib/storage.js'
 import { serializeProduct } from '../lib/serialize.js'
 import { saveSettings, getSettings } from '../lib/settings.js'
 import { ALL_PAYMENT_METHODS } from '../lib/payments/methods.js'
+import { cookieOpts } from '../lib/security.js'
+import { isDbUnreachable } from '../lib/errors.js'
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } })
 export const adminRouter = Router()
@@ -17,15 +19,23 @@ adminRouter.post('/login', async (req, res) => {
   } catch (err) {
     return res.status(err.status || 429).json({ error: err.message })
   }
-  const admin = await prisma.admin.findUnique({ where: { email: String(email || '').toLowerCase() } })
-  if (!admin || !(await verifyPassword(password, admin.passwordHash))) {
-    recordLoginFailure(req, email)
-    return res.status(401).json({ error: 'Invalid credentials' })
+  try {
+    const admin = await prisma.admin.findUnique({ where: { email: String(email || '').toLowerCase() } })
+    if (!admin || !(await verifyPassword(password, admin.passwordHash))) {
+      recordLoginFailure(req, email)
+      return res.status(401).json({ error: 'Invalid credentials' })
+    }
+    clearLoginFailures(req, email)
+    const token = signAdmin(admin)
+    res.cookie('admin_token', token, cookieOpts(7 * 24 * 60 * 60 * 1000))
+    res.json({ admin: { id: admin.id, email: admin.email, name: admin.name } })
+  } catch (err) {
+    console.error(err)
+    const unreachable = isDbUnreachable(err)
+    return res.status(unreachable ? 503 : 500).json({
+      error: unreachable ? 'Database is unreachable. Retry in a moment.' : 'Server error',
+    })
   }
-  clearLoginFailures(req, email)
-  const token = signAdmin(admin)
-  res.cookie('admin_token', token, { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 7 * 24 * 60 * 60 * 1000 })
-  res.json({ token, admin: { id: admin.id, email: admin.email, name: admin.name } })
 })
 
 adminRouter.post('/logout', (_req, res) => {
@@ -41,6 +51,7 @@ adminRouter.get('/me', async (req, res) => {
 })
 
 adminRouter.get('/dashboard', async (_req, res) => {
+  try {
   const [products, orders, customers, paid] = await Promise.all([
     prisma.product.count(),
     prisma.order.count(),
@@ -76,6 +87,13 @@ adminRouter.get('/dashboard', async (_req, res) => {
     salesByDay,
     lowStock: lowStock.map((p) => ({ id: p.id, name: p.name, stock: p.stock, threshold: p.lowStockThreshold })),
   })
+  } catch (err) {
+    console.error(err)
+    const unreachable = isDbUnreachable(err)
+    return res.status(unreachable ? 503 : 500).json({
+      error: unreachable ? 'Database is unreachable. Retry in a moment.' : 'Server error',
+    })
+  }
 })
 
 adminRouter.get('/categories', async (_req, res) => {
