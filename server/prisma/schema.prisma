@@ -1,0 +1,216 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String    @default("")
+  imageUrl    String    @default("")
+  sortOrder   Int       @default(0)
+  status      String    @default("ACTIVE")
+  isFeatured  Boolean   @default(false)
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Product {
+  id                 String                  @id @default(cuid())
+  name               String
+  slug               String                  @unique
+  sku                String                  @unique
+  categoryId         String
+  category           Category                @relation(fields: [categoryId], references: [id])
+  brand              String                  @default("INVIHUB")
+  shortDescription   String
+  description        String
+  featuresJson       String                  @default("[]")
+  tagsJson           String                  @default("[]")
+  price              Float
+  mrp                Float                   @default(0)
+  discount           Float                   @default(0)
+  taxRate            Float                   @default(18)
+  stock              Int                     @default(0)
+  lowStockThreshold  Int                     @default(5)
+  allowBackorders    Boolean                 @default(false)
+  weight             Float                   @default(0)
+  length             Float                   @default(0)
+  width              Float                   @default(0)
+  height             Float                   @default(0)
+  status             String                  @default("ACTIVE")
+  isFeatured         Boolean                 @default(false)
+  isNew              Boolean                 @default(false)
+  isBestSeller       Boolean                 @default(false)
+  paymentMethodsJson String                  @default("[\"RAZORPAY\",\"COD\"]")
+  images             ProductImage[]
+  specifications     ProductSpecification[]
+  cartItems          CartItem[]
+  orderItems         OrderItem[]
+  inventoryMoves     InventoryMovement[]
+  wishlistItems      WishlistItem[]
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String  @default("")
+  sortOrder Int     @default(0)
+  isPrimary Boolean @default(false)
+}
+
+model ProductSpecification {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  value     String
+  sortOrder Int     @default(0)
+}
+
+model Customer {
+  id        String             @id @default(cuid())
+  email     String             @unique
+  name      String
+  phone     String             @default("")
+  passwordHash String?
+  addresses Address[]
+  carts     Cart[]
+  orders    Order[]
+  wishlist  WishlistItem[]
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  line1      String
+  line2      String   @default("")
+  city       String
+  state      String
+  pinCode    String
+  isDefault  Boolean  @default(false)
+}
+
+model Cart {
+  id         String     @id @default(cuid())
+  token      String     @unique
+  customerId String?
+  customer   Customer?  @relation(fields: [customerId], references: [id])
+  items      CartItem[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique
+  customerId      String
+  customer        Customer    @relation(fields: [customerId], references: [id])
+  subtotal        Float
+  discount        Float       @default(0)
+  shipping        Float
+  tax             Float
+  total           Float
+  paymentStatus   String      @default("PENDING")
+  orderStatus     String      @default("PENDING")
+  shippingName    String
+  shippingEmail   String
+  shippingPhone   String
+  shippingLine1   String
+  shippingLine2   String      @default("")
+  shippingCity    String
+  shippingState   String
+  shippingPin     String
+  items           OrderItem[]
+  payments        Payment[]
+  stockReserved   Boolean     @default(false)
+  checkoutTokenHash String    @default("")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model OrderItem {
+  id          String  @id @default(cuid())
+  orderId     String
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product @relation(fields: [productId], references: [id])
+  name        String
+  sku         String
+  quantity    Int
+  unitPrice   Float
+  lineTotal   Float
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  gateway       String
+  method        String   @default("TEST")
+  status        String
+  amount        Float
+  gatewayOrderId String  @default("")
+  gatewayPaymentId String @default("")
+  rawJson       String   @default("{}")
+  createdAt     DateTime @default(now())
+}
+
+model InventoryMovement {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  delta     Int
+  reason    String
+  notes     String   @default("")
+  adminName String   @default("")
+  createdAt DateTime @default(now())
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([customerId, productId])
+}
+
+model StoreSetting {
+  id    String @id @default("default")
+  json  String
+}

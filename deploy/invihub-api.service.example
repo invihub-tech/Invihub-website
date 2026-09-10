@@ -1,0 +1,14 @@
+[Unit]
+Description=INVIHUB Express API
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/invihub/invihub-web
+Environment=NODE_ENV=production
+EnvironmentFile=/var/www/invihub/invihub-web/.env
+ExecStart=/usr/bin/node server/src/index.js
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

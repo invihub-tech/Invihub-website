@@ -1,0 +1,9 @@
+# INVIHUB Web
+node_modules
+dist
+.DS_Store
+.env
+server/prisma/dev.db
+server/prisma/dev.db-journal
+public/uploads/*
+!public/uploads/.gitkeep
