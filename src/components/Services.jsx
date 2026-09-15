@@ -49,23 +49,27 @@ function ServiceStory({ service, index, active, innerRef, onEnter }) {
     <article
       ref={innerRef}
       onMouseEnter={onEnter}
-      className={`flex min-h-0 flex-col justify-center py-8 transition-opacity duration-[650ms] ease-invi motion-reduce:transition-none sm:py-10 md:min-h-[70vh] lg:min-h-[80vh] ${
-        isActive ? 'opacity-100' : 'opacity-[0.22]'
-      }`}
+      className="relative min-h-[100svh] md:min-h-[70vh] lg:min-h-[80vh]"
     >
-      <div className="text-[13px] font-serif text-[#c5a059]">{service.number}</div>
-      <div className="mt-2 text-[11px] tracking-[0.16em] uppercase text-white/40">{service.category}</div>
-      <h3 className="mt-3 font-serif text-[clamp(26px,7vw,52px)] leading-[1.1] text-white">{service.title}</h3>
-      <p className="mt-5 max-w-xl text-[15px] sm:text-[16px] leading-[1.75] text-white/55">{service.description}</p>
-      <ul className="mt-6 space-y-2.5 text-[15px] text-white/70">
-        {service.capabilities.map((item) => (
-          <li key={item} className="flex gap-3">
-            <span className="text-[#c5a059] shrink-0">—</span>
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
-      <div className="mt-8 pt-4 border-t border-white/15 text-[12px] tracking-wide text-white/45">{service.journey}</div>
+      <div
+        className={`sticky top-[calc(60px+env(safe-area-inset-top)+var(--services-pin-h,280px))] z-10 flex flex-col justify-start bg-black py-2 transition-opacity duration-[650ms] ease-invi motion-reduce:transition-none sm:top-[calc(68px+env(safe-area-inset-top)+var(--services-pin-h,280px))] md:static md:z-auto md:min-h-[70vh] md:justify-center md:bg-transparent md:py-10 lg:min-h-[80vh] ${
+          isActive ? 'opacity-100' : 'opacity-[0.22]'
+        }`}
+      >
+        <div className="text-[13px] font-serif text-[#c5a059]">{service.number}</div>
+        <div className="mt-2 text-[11px] tracking-[0.16em] uppercase text-white/40">{service.category}</div>
+        <h3 className="mt-3 font-serif text-[clamp(26px,7vw,52px)] leading-[1.1] text-white">{service.title}</h3>
+        <p className="mt-5 max-w-xl text-[15px] sm:text-[16px] leading-[1.75] text-white/55">{service.description}</p>
+        <ul className="mt-6 space-y-2.5 text-[15px] text-white/70">
+          {service.capabilities.map((item) => (
+            <li key={item} className="flex gap-3">
+              <span className="text-[#c5a059] shrink-0">—</span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-8 pt-4 border-t border-white/15 text-[12px] tracking-wide text-white/45">{service.journey}</div>
+      </div>
     </article>
   )
 }
@@ -73,17 +77,22 @@ function ServiceStory({ service, index, active, innerRef, onEnter }) {
 export default function Services() {
   const [active, setActive] = useState(0)
   const cardRefs = useRef([])
+  const pinRef = useRef(null)
 
   useEffect(() => {
     let frame = 0
     const pickActive = () => {
-      const center = window.innerHeight * 0.42
+      const stacked = window.matchMedia('(max-width: 767px)').matches
+      const pinBottom = pinRef.current?.getBoundingClientRect().bottom ?? 0
+      const center = stacked
+        ? pinBottom + Math.max(48, (window.innerHeight - pinBottom) * 0.35)
+        : window.innerHeight * 0.42
       let best = 0
       let bestDist = Infinity
       cardRefs.current.forEach((el, index) => {
         if (!el) return
         const rect = el.getBoundingClientRect()
-        const mid = (rect.top + rect.bottom) / 2
+        const mid = stacked ? rect.top + Math.min(80, rect.height * 0.2) : (rect.top + rect.bottom) / 2
         const dist = Math.abs(mid - center)
         if (dist < bestDist) {
           bestDist = dist
@@ -110,6 +119,23 @@ export default function Services() {
 
   const current = services[active]
 
+  useEffect(() => {
+    const el = pinRef.current
+    const section = el?.closest('#services')
+    if (!el || !section) return
+    const apply = () => {
+      section.style.setProperty('--services-pin-h', `${Math.round(el.getBoundingClientRect().height)}px`)
+    }
+    apply()
+    const ro = new ResizeObserver(apply)
+    ro.observe(el)
+    window.addEventListener('resize', apply)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', apply)
+    }
+  }, [])
+
   return (
     <section id="services" className="section-pad bg-black border-t border-white/10">
       <div className="container-page">
@@ -130,7 +156,10 @@ export default function Services() {
         </Reveal>
 
         <div className="items-start md:grid md:grid-cols-2 md:gap-10 lg:gap-16">
-          <div className="mb-8 md:sticky md:top-[100px] md:mb-0 md:self-start">
+          <div
+            ref={pinRef}
+            className="sticky top-[calc(60px+env(safe-area-inset-top))] z-20 bg-black pb-4 sm:top-[calc(68px+env(safe-area-inset-top))] md:top-[100px] md:self-start md:pb-0"
+          >
             <CapabilityCard current={current} active={active} />
           </div>
 
