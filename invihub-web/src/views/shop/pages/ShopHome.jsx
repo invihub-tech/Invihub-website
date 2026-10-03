@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { CircuitBoard, Cpu, GraduationCap, LayoutGrid, Wrench } from 'lucide-react'
-import { useShopHome } from '../../../controllers/useShopHome'
+import { useShopHome } from '../../../hooks/useShopHome'
 import ProductCard from '../components/ProductCard'
 
 const icons = {

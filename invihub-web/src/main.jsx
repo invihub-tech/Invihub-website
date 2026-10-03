@@ -1,46 +1,61 @@
-import { StrictMode } from 'react'
+import { lazy, StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 import HomePage from './pages/HomePage.jsx'
-import ShopShell from './views/shop/layouts/ShopShell.jsx'
-import ShopHome from './views/shop/pages/ShopHome.jsx'
-import ProductList from './views/shop/pages/ProductList.jsx'
-import ProductDetail from './views/shop/pages/ProductDetail.jsx'
-import CartPage from './views/shop/pages/CartPage.jsx'
-import CheckoutChoice from './views/shop/pages/CheckoutChoice.jsx'
-import CheckoutPage from './views/shop/pages/CheckoutPage.jsx'
-import OrderSuccess from './views/shop/pages/OrderSuccess.jsx'
-import AccountPage from './views/shop/pages/AccountPage.jsx'
-import AccountOrderPage from './views/shop/pages/AccountOrderPage.jsx'
-import NotFoundPage from './views/shop/pages/NotFoundPage.jsx'
-import ServerErrorPage from './views/shop/pages/ServerErrorPage.jsx'
-import ForbiddenPage from './views/shop/pages/ForbiddenPage.jsx'
-import MaintenancePage from './views/shop/pages/MaintenancePage.jsx'
-import AdminShell from './views/admin/layouts/AdminShell.jsx'
-import AdminLogin from './views/admin/pages/AdminLogin.jsx'
-import AdminDashboard from './views/admin/pages/AdminDashboard.jsx'
-import AdminProducts from './views/admin/pages/AdminProducts.jsx'
-import AdminProductForm from './views/admin/pages/AdminProductForm.jsx'
-import AdminCategories from './views/admin/pages/AdminCategories.jsx'
-import AdminCategoryDetail from './views/admin/pages/AdminCategoryDetail.jsx'
-import AdminOrders from './views/admin/pages/AdminOrders.jsx'
-import AdminOrderDetail from './views/admin/pages/AdminOrderDetail.jsx'
-import AdminInventory from './views/admin/pages/AdminInventory.jsx'
 import { ADMIN_KEY, adminBase } from './config/adminPath.js'
 import ErrorBoundary from './views/ui/ErrorBoundary.jsx'
 import OfflineBanner from './views/ui/OfflineBanner.jsx'
 import MaintenanceGate from './views/ui/MaintenanceGate.jsx'
 import { ErrorFrame } from './views/ui/ApiStatusScreen.jsx'
 
+// Lazy-loaded Shop & Account routes
+const ShopShell = lazy(() => import('./views/shop/layouts/ShopShell.jsx'))
+const ShopHome = lazy(() => import('./views/shop/pages/ShopHome.jsx'))
+const ProductList = lazy(() => import('./views/shop/pages/ProductList.jsx'))
+const ProductDetail = lazy(() => import('./views/shop/pages/ProductDetail.jsx'))
+const CartPage = lazy(() => import('./views/shop/pages/CartPage.jsx'))
+const CheckoutChoice = lazy(() => import('./views/shop/pages/CheckoutChoice.jsx'))
+const CheckoutPage = lazy(() => import('./views/shop/pages/CheckoutPage.jsx'))
+const OrderSuccess = lazy(() => import('./views/shop/pages/OrderSuccess.jsx'))
+const AccountPage = lazy(() => import('./views/shop/pages/AccountPage.jsx'))
+const AccountOrderPage = lazy(() => import('./views/shop/pages/AccountOrderPage.jsx'))
+
+// Lazy-loaded Admin routes
+const AdminShell = lazy(() => import('./views/admin/layouts/AdminShell.jsx'))
+const AdminLogin = lazy(() => import('./views/admin/pages/AdminLogin.jsx'))
+const AdminDashboard = lazy(() => import('./views/admin/pages/AdminDashboard.jsx'))
+const AdminProducts = lazy(() => import('./views/admin/pages/AdminProducts.jsx'))
+const AdminProductForm = lazy(() => import('./views/admin/pages/AdminProductForm.jsx'))
+const AdminCategories = lazy(() => import('./views/admin/pages/AdminCategories.jsx'))
+const AdminCategoryDetail = lazy(() => import('./views/admin/pages/AdminCategoryDetail.jsx'))
+const AdminOrders = lazy(() => import('./views/admin/pages/AdminOrders.jsx'))
+const AdminOrderDetail = lazy(() => import('./views/admin/pages/AdminOrderDetail.jsx'))
+const AdminInventory = lazy(() => import('./views/admin/pages/AdminInventory.jsx'))
+
+// Status / Error pages (shared across app)
+import NotFoundPage from './views/shop/pages/NotFoundPage.jsx'
+import ServerErrorPage from './views/shop/pages/ServerErrorPage.jsx'
+import ForbiddenPage from './views/shop/pages/ForbiddenPage.jsx'
+import MaintenancePage from './views/shop/pages/MaintenancePage.jsx'
+
+function RouteLoading() {
+  return (
+    <div className="flex min-h-[50vh] items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#c5a059] border-t-transparent" />
+    </div>
+  )
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
       <BrowserRouter>
         <OfflineBanner />
-        <Routes>
-          <Route element={<MaintenanceGate />}>
+        <Suspense fallback={<RouteLoading />}>
+          <Routes>
+            <Route element={<MaintenanceGate />}>
             <Route element={<App />}>
               <Route path="/" element={<HomePage />} />
             </Route>
@@ -108,6 +123,7 @@ createRoot(document.getElementById('root')).render(
             />
           </Route>
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </ErrorBoundary>
   </StrictMode>,

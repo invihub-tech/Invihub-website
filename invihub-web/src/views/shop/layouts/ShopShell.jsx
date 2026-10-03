@@ -2,7 +2,7 @@ import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { Search, ShoppingCart, User } from 'lucide-react'
 import { api } from '../../../models/api'
-import { useCartBadge } from '../../../controllers/useCartBadge'
+import { useCartBadge } from '../../../hooks/useCartBadge'
 
 export default function ShopShell() {
   const count = useCartBadge()

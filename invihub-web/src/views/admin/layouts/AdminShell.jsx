@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { api } from '../../../models/api'
 import { adminBase } from '../../../config/adminPath'
-import { useAdminGate } from '../../../controllers/useAdminGate'
+import { useAdminGate } from '../../../hooks/useAdminGate'
 
 export default function AdminShell() {
   const ok = useAdminGate()
