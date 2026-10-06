@@ -1,0 +1,31 @@
+# Supabase local/project config (apply remote changes only with explicit approval)
+project_id = "invihub-web"
+
+[api]
+enabled = true
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+
+[auth]
+enabled = true
+# For initial test setup: disable email confirmation in Dashboard
+# Authentication → Providers → Email → Confirm email = OFF
+site_url = "http://localhost:5173"
+additional_redirect_urls = [
+  "http://localhost:5173",
+  "http://localhost:5173/**",
+  "https://invihub-web.invihub.workers.dev",
+  "https://invihub-web.invihub.workers.dev/**"
+]
+
+[storage]
+enabled = true
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
