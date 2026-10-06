@@ -11,7 +11,25 @@ const icons = {
 }
 
 export default function ShopHome() {
-  const { cats, featured, fresh, best } = useShopHome()
+  const { cats, featured, fresh, best, loading, error } = useShopHome()
+
+  if (loading) {
+    return (
+      <main className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-white/40">Loading shop…</div>
+      </main>
+    )
+  }
+
+  if (error) {
+    return (
+      <main className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <h1 className="font-serif text-2xl text-[#c5a059]">Shop unavailable</h1>
+        <p className="text-white/50">Cannot load catalogue</p>
+        <p className="max-w-md rounded border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</p>
+      </main>
+    )
+  }
 
   return (
     <main>

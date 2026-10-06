@@ -1,10 +1,26 @@
+# Cloudflare Workers — invihub-web
+# Copy this to wrangler.toml when ready to deploy.
+#
+# IMPORTANT: VITE_* env vars must be set as Build Variables in the Cloudflare
+# dashboard BEFORE the build runs (they are baked in by Vite at build time).
+#
+# Dashboard → Workers & Pages → invihub-web → Settings → Variables
+#   VITE_SUPABASE_URL        = https://YOUR_PROJECT_REF.supabase.co
+#   VITE_SUPABASE_ANON_KEY   = your-anon-key
+#   VITE_ADMIN_PATH_KEY      = invihub
+#   VITE_RAZORPAY_KEY_ID     = your-key-id
+
 name = "invihub-web"
 compatibility_date = "2024-09-23"
-pages_build_output_dir = "dist"
 
-# For Cloudflare Pages deployment:
-# Run: npx wrangler pages deploy dist --project-name=invihub-web
-# Or connect GitHub repository to Cloudflare Pages with:
-#   Build command: npm run build
-#   Build output directory: dist
-#   Root directory: invihub-web
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
+
+# Build locally with env vars set, then deploy:
+#   npm run build
+#   npx wrangler deploy
+#
+# Or let Cloudflare build from GitHub (set build variables in the dashboard):
+# [build]
+# command = "npm run build"
