@@ -5,7 +5,5 @@ dist
 .env
 .env.local
 .env.*.local
-server/prisma/dev.db
-server/prisma/dev.db-journal
 public/uploads/*
 !public/uploads/.gitkeep
