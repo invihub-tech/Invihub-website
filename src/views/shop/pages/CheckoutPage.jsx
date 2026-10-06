@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, inr } from '../../../models/api'
 import { PAYMENT_METHODS } from '../../../config/paymentMethods'
-
-const steps = ['Cart', 'Details', 'Payment', 'Review']
+import { ShieldCheck, Truck, CreditCard, ChevronRight, CheckCircle2, Lock } from 'lucide-react'
 
 export default function CheckoutPage() {
   const navigate = useNavigate()
@@ -27,7 +26,10 @@ export default function CheckoutPage() {
     api.cart().then((data) => {
       setCart(data)
       const allowed = data.allowedPaymentMethods || []
-      setForm((f) => ({ ...f, paymentMethod: allowed.includes(f.paymentMethod) ? f.paymentMethod : allowed[0] || '' }))
+      setForm((f) => ({
+        ...f,
+        paymentMethod: allowed.includes(f.paymentMethod) ? f.paymentMethod : allowed[0] || 'RAZORPAY',
+      }))
     })
     api
       .customerMe()
@@ -48,9 +50,10 @@ export default function CheckoutPage() {
       .catch(() => {})
   }, [])
 
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
+  const set = (k) => (e) =>
+    setForm((f) => ({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
 
-  const pay = async (e) => {
+  const handlePay = async (e) => {
     e.preventDefault()
     setBusy(true)
     setErr('')
@@ -60,90 +63,278 @@ export default function CheckoutPage() {
         await api.confirmPay(created.orderId)
       }
       window.dispatchEvent(new Event('invi-cart'))
-      navigate(`/shop/order-success?order=${encodeURIComponent(created.orderNumber)}&pay=${encodeURIComponent(created.paymentMethod)}`)
+      navigate(
+        `/shop/order-success?order=${encodeURIComponent(created.orderNumber)}&pay=${encodeURIComponent(
+          created.paymentMethod,
+        )}`,
+      )
     } catch (ex) {
-      setErr(ex.message)
+      setErr(ex.message || 'Payment processing failed')
     } finally {
       setBusy(false)
     }
   }
 
-  if (!cart) return <main className="p-10">Loading…</main>
+  if (!cart) {
+    return (
+      <main className="mx-auto max-w-7xl px-4 py-20 text-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent mx-auto" />
+        <p className="mt-3 text-xs text-slate-500 font-medium">Securing checkout session…</p>
+      </main>
+    )
+  }
 
-  const labels = { name: 'Full Name', email: 'Email', phone: 'Phone', line1: 'Address', line2: 'Address line 2', city: 'City', state: 'State', pinCode: 'PIN Code' }
+  const items = cart.cart?.items || []
+  const totals = cart.totals || {}
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
-      <div className="mb-10 flex flex-wrap gap-3 text-xs uppercase tracking-wider">
-        {steps.map((s, i) => (
-          <span key={s} className={i === 1 ? 'text-[#c5a059]' : 'text-white/35'}>
-            {i + 1}. {s}
-            {i < 3 ? ' →' : ''}
-          </span>
-        ))}
+    <main className="mx-auto max-w-7xl px-4 sm:px-6 py-8 space-y-6">
+      {/* Checkout step progress */}
+      <div className="flex items-center justify-between max-w-2xl mx-auto text-xs font-bold text-slate-400 py-3 px-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+        <span className="text-slate-400">① Customer</span>
+        <span>→</span>
+        <span className="text-[#f97316] flex items-center gap-1">
+          <Truck size={13} /> ② Delivery & Payment
+        </span>
+        <span>→</span>
+        <span className="text-slate-400">③ Confirmation</span>
       </div>
-      <div className="grid gap-10 lg:grid-cols-2">
-        <form onSubmit={pay} className="space-y-4">
-          <h1 className="font-serif text-4xl">Shipping details</h1>
-          {Object.keys(labels).map((k) => (
-            <label key={k} className="block text-xs uppercase tracking-wider text-white/40">
-              {labels[k]}
-              <input required={k !== 'line2'} className="field-input mt-2" value={form[k]} onChange={set(k)} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Form: Delivery Address & Payment */}
+        <form onSubmit={handlePay} className="lg:col-span-7 space-y-6">
+          {/* Shipping Address Card */}
+          <div className="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-sm space-y-4">
+            <h2 className="text-lg font-extrabold text-slate-900 pb-2 border-b border-slate-100 flex items-center gap-2">
+              <Truck className="text-[#f97316]" size={18} />
+              <span>Delivery Address</span>
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Full Name *</label>
+                <input
+                  required
+                  placeholder="Recipient Name"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-xs text-slate-900 outline-none focus:border-[#f97316] focus:ring-1 focus:ring-orange-500"
+                  value={form.name}
+                  onChange={set('name')}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Phone Number *</label>
+                <input
+                  required
+                  placeholder="+91 9876543210"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-xs text-slate-900 outline-none focus:border-[#f97316] focus:ring-1 focus:ring-orange-500"
+                  value={form.phone}
+                  onChange={set('phone')}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Email Address (for order updates) *</label>
+              <input
+                required
+                type="email"
+                placeholder="you@domain.com"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-xs text-slate-900 outline-none focus:border-[#f97316] focus:ring-1 focus:ring-orange-500"
+                value={form.email}
+                onChange={set('email')}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Street Address / Door No. *</label>
+              <input
+                required
+                placeholder="House / Flat / Block / Street"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-xs text-slate-900 outline-none focus:border-[#f97316] focus:ring-1 focus:ring-orange-500"
+                value={form.line1}
+                onChange={set('line1')}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Apartment, suite, landmark (optional)</label>
+              <input
+                placeholder="Near landmark, sector, floor"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-xs text-slate-900 outline-none focus:border-[#f97316] focus:ring-1 focus:ring-orange-500"
+                value={form.line2}
+                onChange={set('line2')}
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">City *</label>
+                <input
+                  required
+                  placeholder="City"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-xs text-slate-900 outline-none focus:border-[#f97316] focus:ring-1 focus:ring-orange-500"
+                  value={form.city}
+                  onChange={set('city')}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">State *</label>
+                <input
+                  required
+                  placeholder="State"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-xs text-slate-900 outline-none focus:border-[#f97316] focus:ring-1 focus:ring-orange-500"
+                  value={form.state}
+                  onChange={set('state')}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">PIN Code *</label>
+                <input
+                  required
+                  placeholder="PIN"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 text-xs text-slate-900 outline-none focus:border-[#f97316] focus:ring-1 focus:ring-orange-500"
+                  value={form.pinCode}
+                  onChange={set('pinCode')}
+                />
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 pt-2 text-xs text-slate-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.billingSame}
+                onChange={set('billingSame')}
+                className="rounded text-[#f97316] focus:ring-[#f97316]"
+              />
+              <span>Billing address is same as delivery address</span>
             </label>
-          ))}
-          <label className="flex items-center gap-2 text-sm text-white/70">
-            <input type="checkbox" checked={form.billingSame} onChange={set('billingSame')} /> Billing address same as shipping
-          </label>
-          <fieldset className="space-y-2">
-            <legend className="font-serif text-2xl">Payment method</legend>
-            {!(cart.allowedPaymentMethods || []).length && (
-              <p className="text-red-400">These products cannot be paid for together. Remove items that do not share a payment method.</p>
-            )}
-            <div className="grid gap-2">
-              {(cart.allowedPaymentMethods || []).map((id) => {
-                const meta = PAYMENT_METHODS.find((m) => m.id === id)
-                const on = form.paymentMethod === id
+          </div>
+
+          {/* Payment Method Card */}
+          <div className="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-sm space-y-4">
+            <h2 className="text-lg font-extrabold text-slate-900 pb-2 border-b border-slate-100 flex items-center gap-2">
+              <CreditCard className="text-[#f97316]" size={18} />
+              <span>Select Payment Method</span>
+            </h2>
+
+            <div className="space-y-2.5">
+              {(cart.allowedPaymentMethods || []).map((mid) => {
+                const isSelected = form.paymentMethod === mid
                 return (
                   <label
-                    key={id}
-                    className={`flex cursor-pointer items-center gap-3 rounded-md border px-4 py-3 text-sm ${
-                      on ? 'border-[#c5a059] bg-[#c5a059]/10 text-white' : 'border-white/15 text-white/70'
+                    key={mid}
+                    className={`flex items-center justify-between p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-[#f97316] bg-orange-50/50 shadow-sm'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
                     }`}
                   >
-                    <input type="radio" name="paymentMethod" value={id} checked={on} onChange={set('paymentMethod')} className="sr-only" required />
-                    <span className={`h-3 w-3 shrink-0 rounded-full border ${on ? 'border-[#c5a059] bg-[#c5a059]' : 'border-white/30'}`} />
-                    {meta?.label || id}
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value={mid}
+                        checked={isSelected}
+                        onChange={set('paymentMethod')}
+                        className="text-[#f97316] focus:ring-[#f97316]"
+                      />
+                      <div>
+                        <div className="text-xs font-bold text-slate-900">
+                          {PAYMENT_METHODS[mid]?.label || mid}
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          {mid === 'RAZORPAY' && 'UPI (GPay/PhonePe), Credit/Debit Cards, NetBanking'}
+                          {mid === 'UPI' && 'Instant scan & pay via any UPI app'}
+                          {mid === 'COD' && 'Cash on delivery available at selected pin codes'}
+                          {mid === 'BANK' && 'Direct NEFT / IMPS business bank transfer'}
+                        </div>
+                      </div>
+                    </div>
+                    {isSelected && <CheckCircle2 size={18} className="text-[#f97316]" />}
                   </label>
                 )
               })}
             </div>
-          </fieldset>
-          {err && <p className="text-red-400">{err}</p>}
-          <button type="submit" className="btn-gold w-full" disabled={busy || !cart.cart.items.length || !form.paymentMethod}>
-            {busy ? 'Processing…' : `Place order → ${inr(cart.totals.total)}`}
-          </button>
-          <p className="text-center text-xs text-white/40">Online payments use Razorpay (TEST / mock). COD and bank transfer stay pending until paid.</p>
-        </form>
-        <aside className="h-fit rounded-md border border-white/10 p-6">
-          <h2 className="font-serif text-2xl">Order summary</h2>
-          <ul className="mt-4 space-y-3 text-sm">
-            {cart.cart.items.map((i) => (
-              <li key={i.id} className="flex justify-between">
-                <span>
-                  {i.product.name} × {i.quantity}
-                </span>
-                <span>{inr(i.product.price * i.quantity)}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-6 space-y-1 text-sm text-white/60">
-            <div className="flex justify-between"><span>Shipping</span><span>{inr(cart.totals.shipping)}</span></div>
-            <div className="flex justify-between"><span>Tax</span><span>{inr(cart.totals.tax)}</span></div>
-            <div className="flex justify-between text-lg text-white"><span>Total</span><span>{inr(cart.totals.total)}</span></div>
           </div>
-          <Link to="/shop/cart" className="mt-4 inline-block text-sm text-[#c5a059]">
-            ← Back to cart
-          </Link>
+
+          {err && <div className="text-xs text-red-600 bg-red-50 p-3 rounded-lg border border-red-200">{err}</div>}
+
+          <button
+            type="submit"
+            disabled={busy}
+            className="btn-shop-primary w-full py-4 text-sm font-extrabold gap-2 shadow-xl shadow-orange-950/20"
+          >
+            <Lock size={16} />
+            <span>{busy ? 'Processing Order…' : `Pay & Place Order • ${inr(totals.total)}`}</span>
+          </button>
+        </form>
+
+        {/* Right Summary Column */}
+        <aside className="lg:col-span-5 space-y-5 sticky top-36">
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+            <h3 className="font-extrabold text-sm uppercase tracking-wider text-slate-900 pb-2 border-b border-slate-100">
+              Order Summary ({items.length} items)
+            </h3>
+
+            {/* Item list */}
+            <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 pr-1">
+              {items.map((i) => (
+                <div key={i.id} className="py-2.5 first:pt-0 flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="w-5 h-5 rounded bg-slate-100 text-slate-700 font-bold text-[10px] flex items-center justify-center shrink-0">
+                      {i.quantity}×
+                    </span>
+                    <span className="font-medium text-slate-800 line-clamp-1">{i.name}</span>
+                  </div>
+                  <span className="font-bold text-slate-900 shrink-0">
+                    {inr(i.lineTotal || i.unitPrice * i.quantity)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Calculations */}
+            <div className="pt-3 border-t border-slate-100 space-y-2 text-xs text-slate-600">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span className="font-semibold text-slate-800">{inr(totals.subtotal)}</span>
+              </div>
+              {totals.discount > 0 && (
+                <div className="flex justify-between text-emerald-600 font-semibold">
+                  <span>Discount</span>
+                  <span>-{inr(totals.discount)}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span>Delivery</span>
+                <span>
+                  {totals.shipping > 0 ? inr(totals.shipping) : <strong className="text-emerald-600">FREE</strong>}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>GST (18%)</span>
+                <span>{inr(totals.tax)}</span>
+              </div>
+
+              <div className="pt-3 border-t border-slate-200 flex justify-between items-baseline font-black text-slate-900 text-base">
+                <span>Grand Total</span>
+                <span className="text-xl text-[#f97316]">{inr(totals.total)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-xl bg-orange-50/60 border border-orange-200/60 text-xs text-slate-700 space-y-1.5">
+            <div className="flex items-center gap-1.5 font-bold text-slate-900">
+              <ShieldCheck size={16} className="text-[#f97316]" />
+              <span>INVIHUB Quality Promise</span>
+            </div>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Every parcel is shipped with insurance and tracking. 100% replacement warranty on any shipping damage.
+            </p>
+          </div>
         </aside>
       </div>
     </main>

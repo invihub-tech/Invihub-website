@@ -319,3 +319,90 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ==========================================================================
+   INVIHUB Shop Design System
+   ========================================================================== */
+
+.shop-ui {
+  --shop-orange: #f97316;
+  --shop-orange-hover: #ea580c;
+  --shop-dark: #0f172a;
+  --shop-dark-surface: #1e293b;
+  --shop-gray-bg: #f8fafc;
+  --shop-border: #e2e8f0;
+  --shop-text-dark: #0f172a;
+  --shop-text-muted: #64748b;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #0f172a;
+}
+
+.shop-ui button,
+.shop-ui a,
+.shop-ui input,
+.shop-ui select {
+  font-family: inherit;
+}
+
+.btn-shop-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f97316;
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  transition: all 180ms ease;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.btn-shop-primary:hover {
+  background-color: #ea580c;
+  box-shadow: 0 4px 12px 0 rgba(249, 115, 22, 0.25);
+}
+
+.btn-shop-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-shop-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #334155;
+  font-weight: 500;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  transition: all 180ms ease;
+}
+
+.btn-shop-outline:hover {
+  border-color: #f97316;
+  color: #f97316;
+  background-color: #fff7ed;
+}
+
+.shop-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  transition: all 220ms ease;
+}
+
+.shop-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  transform: translateY(-2px);
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
