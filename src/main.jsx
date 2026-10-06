@@ -89,6 +89,19 @@ createRoot(document.getElementById('root')).render(
               <Route path="*" element={<NotFoundPage />} />
             </Route>
 
+            {ADMIN_KEY !== 'invitech' && (
+              <>
+                <Route path="/invitech/admin/login" element={<Navigate to={`${adminBase}/login`} replace />} />
+                <Route path="/invitech/admin/*" element={<Navigate to={adminBase} replace />} />
+              </>
+            )}
+            {ADMIN_KEY !== 'invihub' && (
+              <>
+                <Route path="/invihub/admin/login" element={<Navigate to={`${adminBase}/login`} replace />} />
+                <Route path="/invihub/admin/*" element={<Navigate to={adminBase} replace />} />
+              </>
+            )}
+
             <Route
               path="/error/server"
               element={

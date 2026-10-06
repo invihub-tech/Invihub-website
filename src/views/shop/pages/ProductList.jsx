@@ -75,11 +75,12 @@ export default function ProductList({ categoryMode = false }) {
       })
       .finally(() => setLoading(false))
 
-    if (categoryMode && slug) {
+    const activeSlug = categoryMode ? slug : query.category
+    if (activeSlug) {
       api.categories().then((list) => {
-        const found = list.find((c) => c.slug === slug) || null
+        const found = list.find((c) => c.slug === activeSlug) || null
         setCat(found)
-        setCatMissing(!found)
+        if (categoryMode) setCatMissing(!found)
       })
     } else {
       setCat(null)
@@ -137,7 +138,7 @@ export default function ProductList({ categoryMode = false }) {
           Shop
         </Link>
         <ChevronRight size={12} className="text-slate-400" />
-        {categoryMode && cat ? (
+        {cat ? (
           <span className="font-semibold text-slate-900">{cat.name}</span>
         ) : query.q ? (
           <span>

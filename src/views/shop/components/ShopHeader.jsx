@@ -58,10 +58,19 @@ export default function ShopHeader({ onOpenCart }) {
     navigate(`/shop/products?${params.toString()}`)
   }
 
+  // Combine category suggestions with popular items
+  const dynamicSuggestions = [
+    ...categories.map((c) => ({ text: c.name, category: c.name, hot: true })),
+    { text: 'INVI E-BOX', category: 'Engineering Products', hot: true },
+    { text: '6 DOF Robotic Arm', category: 'Robotics', hot: true },
+    { text: 'Buddha Key Chain Black', category: 'Art', hot: false },
+    { text: 'Prosthetic Hand', category: 'Educational Kits', hot: false },
+  ]
+
   // Filter suggestion list based on input
   const filteredSuggestions = q.trim()
-    ? POPULAR_SUGGESTIONS.filter((s) => s.text.toLowerCase().includes(q.toLowerCase()))
-    : POPULAR_SUGGESTIONS.slice(0, 6)
+    ? dynamicSuggestions.filter((s) => s.text.toLowerCase().includes(q.toLowerCase()))
+    : dynamicSuggestions.slice(0, 6)
 
   return (
     <div className="bg-white border-b border-slate-200">
