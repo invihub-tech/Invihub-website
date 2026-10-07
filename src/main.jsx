@@ -21,6 +21,8 @@ const CheckoutPage = lazy(() => import('./views/shop/pages/CheckoutPage.jsx'))
 const OrderSuccess = lazy(() => import('./views/shop/pages/OrderSuccess.jsx'))
 const AccountPage = lazy(() => import('./views/shop/pages/AccountPage.jsx'))
 const AccountOrderPage = lazy(() => import('./views/shop/pages/AccountOrderPage.jsx'))
+const CustomizePage = lazy(() => import('./views/shop/pages/CustomizePage.jsx'))
+const Custom3DPrintingPage = lazy(() => import('./views/shop/pages/Custom3DPrintingPage.jsx'))
 
 // Lazy-loaded Admin routes
 const AdminShell = lazy(() => import('./views/admin/layouts/AdminShell.jsx'))
@@ -33,6 +35,8 @@ const AdminCategoryDetail = lazy(() => import('./views/admin/pages/AdminCategory
 const AdminOrders = lazy(() => import('./views/admin/pages/AdminOrders.jsx'))
 const AdminOrderDetail = lazy(() => import('./views/admin/pages/AdminOrderDetail.jsx'))
 const AdminInventory = lazy(() => import('./views/admin/pages/AdminInventory.jsx'))
+const AdminCustomRequests = lazy(() => import('./views/admin/pages/AdminCustomRequests.jsx'))
+const AdminCustomRequestDetail = lazy(() => import('./views/admin/pages/AdminCustomRequestDetail.jsx'))
 
 // Status / Error pages (shared across app)
 import NotFoundPage from './views/shop/pages/NotFoundPage.jsx'
@@ -71,6 +75,8 @@ createRoot(document.getElementById('root')).render(
               <Route path="order-success" element={<OrderSuccess />} />
               <Route path="account" element={<AccountPage />} />
               <Route path="account/orders/:id" element={<AccountOrderPage />} />
+              <Route path="customize" element={<CustomizePage />} />
+              <Route path="custom-printing" element={<Custom3DPrintingPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
 
@@ -86,6 +92,8 @@ createRoot(document.getElementById('root')).render(
               <Route path="orders" element={<AdminOrders />} />
               <Route path="orders/:id" element={<AdminOrderDetail />} />
               <Route path="inventory" element={<AdminInventory />} />
+              <Route path="custom-requests" element={<AdminCustomRequests />} />
+              <Route path="custom-requests/:id" element={<AdminCustomRequestDetail />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
 

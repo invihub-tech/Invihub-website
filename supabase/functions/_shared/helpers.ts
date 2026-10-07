@@ -170,6 +170,7 @@ export function serializeProduct(p: any) {
     isFeatured: p.is_featured,
     isNew: p.is_new,
     isBestSeller: p.is_best_seller,
+    allowCustomization: Boolean(p.allow_customization),
     paymentMethods: parsePaymentMethods(p.payment_methods_json),
     category: p.categories
       ? { id: p.categories.id, name: p.categories.name, slug: p.categories.slug }
@@ -183,6 +184,13 @@ export function serializeProduct(p: any) {
       isPrimary: i.is_primary,
     })),
     specifications: specs.map((s: any) => ({ id: s.id, name: s.name, value: s.value })),
+    parts: (() => {
+      try {
+        return typeof p.parts_json === 'string' ? JSON.parse(p.parts_json) : (p.parts_json || [])
+      } catch {
+        return []
+      }
+    })(),
     inStock: p.stock > 0,
   }
 }

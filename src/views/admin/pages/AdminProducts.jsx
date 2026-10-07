@@ -9,7 +9,7 @@ export default function AdminProducts() {
   const [rows, setRows] = useState([])
   const [tab, setTab] = useState('ALL')
   const [q, setQ] = useState('')
-  const load = () => api.adminProducts().then(setRows)
+  const load = () => api.adminProducts().then(setRows).catch(() => {})
   useEffect(() => {
     load()
   }, [])

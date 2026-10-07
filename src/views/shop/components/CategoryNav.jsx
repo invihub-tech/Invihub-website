@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, NavLink } from 'react-router-dom'
-import { Menu, ChevronDown, Flame, ChevronRight, Box, Tag } from 'lucide-react'
+import { Menu, ChevronDown, Flame, ChevronRight, Box, Tag, Wrench } from 'lucide-react'
 
 export default function CategoryNav({ dbCategories = [] }) {
   const [megaOpen, setMegaOpen] = useState(false)
@@ -60,11 +60,24 @@ export default function CategoryNav({ dbCategories = [] }) {
                   </div>
                 </Link>
               ))}
-              <div className="border-t border-slate-100 mt-2 pt-2">
+              <div className="border-t border-slate-100 mt-2 pt-2 space-y-1">
+                <Link
+                  to="/shop/custom-printing"
+                  onClick={() => setMegaOpen(false)}
+                  className="flex items-center justify-between px-4 py-2 text-xs font-bold text-[#f97316] bg-orange-50/70 hover:bg-orange-100 rounded-md transition-colors"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Wrench size={13} />
+                    <span>Custom 3D Printing</span>
+                  </div>
+                  <span className="text-[10px] bg-[#f97316] text-white px-1.5 py-0.5 rounded font-bold uppercase">
+                    Service
+                  </span>
+                </Link>
                 <Link
                   to="/shop/products"
                   onClick={() => setMegaOpen(false)}
-                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-[#f97316] hover:text-orange-700"
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-slate-700 hover:text-[#f97316]"
                 >
                   <Tag size={13} />
                   View All Products
@@ -76,6 +89,20 @@ export default function CategoryNav({ dbCategories = [] }) {
 
         {/* Primary Horizontal Category Links — from DB */}
         <div className="hidden md:flex items-center gap-5 py-2.5 overflow-x-auto hide-scrollbar flex-1 px-6">
+          <NavLink
+            to="/shop/custom-printing"
+            className={({ isActive }) =>
+              `flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap shadow-sm shrink-0 ${
+                isActive
+                  ? 'bg-[#f97316] text-white'
+                  : 'bg-orange-50 text-orange-600 border border-orange-200 hover:bg-orange-100 hover:text-orange-700'
+              }`
+            }
+          >
+            <Wrench size={13} />
+            <span>Custom 3D Printing</span>
+          </NavLink>
+
           {validCats.slice(0, 7).map((cat) => (
             <NavLink
               key={cat.id || cat.slug}

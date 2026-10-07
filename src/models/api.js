@@ -47,7 +47,12 @@ async function edge(path, options = {}) {
   if (res.status === 503 || data.maintenance) {
     window.dispatchEvent(new Event('invi-maintenance'))
   }
-  if (!res.ok) throw new ApiError(data.error || res.statusText, res.status)
+  if (!res.ok) {
+    if (res.status === 401 && typeof window !== 'undefined' && window.location.pathname.includes('/admin') && !path.includes('/admin/login')) {
+      window.dispatchEvent(new Event('invi-admin-unauthorized'))
+    }
+    throw new ApiError(data.error || res.statusText, res.status)
+  }
   return data
 }
 
@@ -202,6 +207,13 @@ export const api = {
   adminInventoryHistory: (id) => edge(`/admin/inventory/${id}/history`),
   adminAdjustStock: (id, delta, reason, notes = '') =>
     edge(`/admin/inventory/${id}`, { method: 'POST', body: { delta, reason, notes } }),
+
+  // Custom requests
+  submitCustomRequest: (body) => edge('/customizations/submit', { method: 'POST', body }),
+  adminCustomRequests: () => edge('/admin/custom-requests'),
+  adminCustomRequest: (id) => edge(`/admin/custom-requests/${id}`),
+  adminUpdateCustomRequest: (id, body) =>
+    edge(`/admin/custom-requests/${id}`, { method: 'PATCH', body }),
 
   upload: async (file) => {
     const buf = await file.arrayBuffer()

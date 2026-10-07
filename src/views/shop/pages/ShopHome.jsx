@@ -400,23 +400,23 @@ export default function ShopHome() {
       )}
 
       {/* =========================================================================
-          8. CUSTOM REQUIREMENT CTA
+          8. CUSTOM 3D PRINTING & PROTOTYPING CTA
           ========================================================================= */}
       <section className="rounded-2xl bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 text-white p-8 sm:p-12 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="space-y-2 max-w-xl text-center md:text-left">
           <span className="bg-white/20 text-white text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wider inline-block">
-            Custom Manufacturing &amp; Prototyping
+            🛠 Custom 3D Printing &amp; Prototyping
           </span>
-          <h3 className="text-2xl sm:text-3xl font-black">Need Custom Engineering Solutions?</h3>
+          <h3 className="text-2xl sm:text-3xl font-black">Need a Custom Part or 3D Print?</h3>
           <p className="text-xs sm:text-sm text-orange-100">
-            Send your CAD files or schematics to our team. We handle rapid prototyping, volume batch production, and circuit design.
+            Upload your STL/STEP files or describe your design from scratch. We handle rapid slicing, premium filaments (PLA, PETG, ABS, Resin), and pan-India express dispatch.
           </p>
         </div>
         <Link
-          to="/#contact"
+          to="/shop/custom-printing"
           className="bg-slate-950 hover:bg-slate-900 text-white font-bold text-xs sm:text-sm px-6 py-3.5 rounded-lg shadow-lg hover:scale-105 transition-all shrink-0"
         >
-          Discuss Your Project With Engineers →
+          Submit 3D Printing Request →
         </Link>
       </section>
     </main>

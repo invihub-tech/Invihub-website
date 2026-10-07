@@ -27,7 +27,7 @@ function Spark({ points }) {
 export default function AdminDashboard() {
   const [d, setD] = useState(null)
   useEffect(() => {
-    api.adminDashboard().then(setD)
+    api.adminDashboard().then(setD).catch(() => {})
   }, [])
   if (!d) return <p>Loading…</p>
 

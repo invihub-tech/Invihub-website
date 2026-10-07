@@ -28,6 +28,7 @@ const PRODUCT_EMBED =
 const CART_EMBED =
   `*, cart_items(*, products(${PRODUCT_EMBED}))`
 const ORDER_EMBED = '*, order_items(*), payments(*)'
+const CUSTOM_REQUEST_EMBED = '*, products(id, name, slug), customization_files(*)'
 
 const lookupAttempts = new Map<string, { count: number; first: number }>()
 const adminLoginAttempts = new Map<string, { count: number; first: number }>()
@@ -176,6 +177,51 @@ function serializeOrderAdmin(o: any) {
   }
 }
 
+function serializeCustomRequest(r: any) {
+  let quotation: any = {}
+  try { quotation = JSON.parse(r.quotation_json || '{}') } catch { /* ignore */ }
+  let dimensions: any = {}
+  try { dimensions = JSON.parse(r.dimensions_json || '{}') } catch { /* ignore */ }
+  let printingRequirements: any = {}
+  try { printingRequirements = JSON.parse(r.printing_requirements_json || '{}') } catch { /* ignore */ }
+  let finishing: any = []
+  try { finishing = JSON.parse(r.finishing_json || '[]') } catch { /* ignore */ }
+
+  return {
+    id: r.id,
+    requestNumber: r.request_number,
+    customerId: r.customer_id,
+    productId: r.product_id,
+    product: r.products ? { id: r.products.id, name: r.products.name, slug: r.products.slug } : null,
+    customerName: r.customer_name,
+    customerEmail: r.customer_email,
+    customerPhone: r.customer_phone,
+    status: r.status,
+    serviceType: r.service_type,
+    material: r.material,
+    color: r.color,
+    quantity: r.quantity,
+    requirements: r.requirements,
+    adminNotes: r.admin_notes,
+    quotation,
+    dimensions,
+    printingRequirements,
+    finishing,
+    files: (r.customization_files || []).map((f: any) => ({
+      id: f.id,
+      fileName: f.file_name,
+      fileType: f.file_type,
+      fileSize: f.file_size,
+      fileCategory: f.file_category,
+      storagePath: f.storage_path,
+      url: f.url,
+      createdAt: f.created_at,
+    })),
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }
+}
+
 function productData(body: any) {
   return {
     name: body.name,
@@ -202,6 +248,8 @@ function productData(body: any) {
     is_featured: Boolean(body.isFeatured),
     is_new: Boolean(body.isNew),
     is_best_seller: Boolean(body.isBestSeller),
+    allow_customization: Boolean(body.allowCustomization),
+    parts_json: JSON.stringify(body.parts || []),
     payment_methods_json: JSON.stringify(body.paymentMethods),
   }
 }
@@ -1106,7 +1154,85 @@ Deno.serve(async (req) => {
       return json(req, { ok: true })
     }
 
+    // ── CUSTOMER: Submit Custom Request ─────────────────────────────────────
+    if (match(method, path, 'POST', '/customizations/submit')) {
+      const body = await readBody(req)
+      if (body === null) return err(req, 'Invalid JSON')
+      const customerName = String(body.customerName || '').trim()
+      const customerEmail = String(body.customerEmail || '').trim().toLowerCase()
+      const customerPhone = String(body.customerPhone || '').trim()
+      if (!customerName || !customerEmail) return err(req, 'Name and email are required', 400)
+      const qty = Number(body.quantity) || 1
+      if (qty < 1) return err(req, 'Quantity must be at least 1', 400)
+
+      // Resolve optional customer_id from session
+      let customerId: string | null = null
+      try {
+        const authH = req.headers.get('authorization') || ''
+        const token = authH.replace(/^Bearer\s+/i, '').trim()
+        if (token) {
+          const urlEnv = Deno.env.get('SUPABASE_URL')!
+          const anon = Deno.env.get('SUPABASE_ANON_KEY')!
+          const userSb = createClient(urlEnv, anon, {
+            global: { headers: { Authorization: `Bearer ${token}` } },
+            auth: { persistSession: false, autoRefreshToken: false },
+          })
+          const { data: { user } } = await userSb.auth.getUser()
+          if (user) {
+            const { data: cust } = await sb.from('customers').select('id').eq('user_id', user.id).maybeSingle()
+            if (cust) customerId = cust.id
+          }
+        }
+      } catch { /* optional */ }
+
+      // Generate unique request number
+      const reqNum = `CR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
+      const { data: inserted, error: insErr } = await sb
+        .from('customization_requests')
+        .insert({
+          request_number: reqNum,
+          customer_id: customerId,
+          product_id: body.productId || null,
+          customer_name: customerName,
+          customer_email: customerEmail,
+          customer_phone: customerPhone,
+          service_type: body.serviceType || 'READY_DESIGN',
+          material: body.material || 'PLA',
+          color: body.color || 'Black',
+          quantity: qty,
+          requirements: String(body.requirements || ''),
+          dimensions_json: JSON.stringify(body.dimensions || {}),
+          printing_requirements_json: JSON.stringify(body.printingRequirements || {}),
+          finishing_json: JSON.stringify(body.finishing || []),
+        })
+        .select('id, request_number, status')
+        .single()
+
+      if (insErr) return err(req, insErr.message, 500)
+
+      // Record uploaded file metadata if provided
+      if (Array.isArray(body.files) && body.files.length > 0) {
+        const fileMeta = body.files.map((f: any) => ({
+          request_id: inserted.id,
+          file_name: String(f.fileName || f.name || 'file'),
+          file_type: String(f.fileType || f.type || ''),
+          file_size: Number(f.fileSize || f.size || 0),
+          file_category: String(f.fileCategory || 'original'),
+          storage_path: String(f.storagePath || f.path || ''),
+          url: String(f.url || ''),
+        }))
+        await sb.from('customization_files').insert(fileMeta)
+      }
+
+      return json(req, {
+        id: inserted.id,
+        requestNumber: inserted.request_number,
+        status: inserted.status,
+      })
+    }
+
     // ---------- ADMIN ----------
+
     if (match(method, path, 'POST', '/admin/login')) {
       const body = await readBody(req)
       if (body === null) return err(req, 'Invalid JSON')
@@ -1743,6 +1869,52 @@ Deno.serve(async (req) => {
           .from('store_settings')
           .upsert({ id: 'default', json: JSON.stringify(next) })
         return json(req, next)
+      }
+
+      // ── ADMIN: Custom Requests ──────────────────────────────────────────────
+      if (match(method, path, 'GET', '/admin/custom-requests')) {
+        const { data: rows } = await asb
+          .from('customization_requests')
+          .select(CUSTOM_REQUEST_EMBED)
+          .order('created_at', { ascending: false })
+        return json(req, (rows || []).map(serializeCustomRequest))
+      }
+
+      {
+        const m = match(method, path, 'GET', '/admin/custom-requests/:id')
+        if (m) {
+          const { data: row } = await asb
+            .from('customization_requests')
+            .select(CUSTOM_REQUEST_EMBED)
+            .eq('id', m.id)
+            .single()
+          if (!row) return err(req, 'Not found', 404)
+          return json(req, serializeCustomRequest(row))
+        }
+      }
+
+      {
+        const m = match(method, path, 'PATCH', '/admin/custom-requests/:id')
+        if (m) {
+          const body = await readBody(req)
+          if (body === null) return err(req, 'Invalid JSON')
+          const allowed = [
+            'status', 'admin_notes', 'quotation_json',
+          ]
+          const update: Record<string, any> = {}
+          for (const k of allowed) {
+            if (body[k] !== undefined) update[k] = body[k]
+          }
+          if (Object.keys(update).length === 0) return err(req, 'Nothing to update')
+          const { data: updated, error: ue } = await asb
+            .from('customization_requests')
+            .update(update)
+            .eq('id', m.id)
+            .select(CUSTOM_REQUEST_EMBED)
+            .single()
+          if (ue) return err(req, ue.message, 500)
+          return json(req, serializeCustomRequest(updated))
+        }
       }
 
       return err(req, 'Not found', 404)

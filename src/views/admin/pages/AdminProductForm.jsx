@@ -24,9 +24,11 @@ const empty = {
   isFeatured: false,
   isNew: false,
   isBestSeller: false,
+  allowCustomization: false,
   paymentMethods: ['RAZORPAY', 'COD'],
   images: [],
   specifications: [{ name: '', value: '' }],
+  parts: [],
 }
 
 export default function AdminProductForm() {
@@ -49,6 +51,7 @@ export default function AdminProductForm() {
           features: p.features?.length ? p.features : [''],
           paymentMethods: p.paymentMethods?.length ? p.paymentMethods : ['RAZORPAY', 'COD'],
           specifications: p.specifications?.length ? p.specifications : [{ name: '', value: '' }],
+          parts: Array.isArray(p.parts) ? p.parts : [],
         })
       })
     }
@@ -68,6 +71,17 @@ export default function AdminProductForm() {
         slug: form.slug || form.name.toLowerCase().replace(/\s+/g, '-'),
         features: (form.features || []).filter(Boolean),
         specifications: (form.specifications || []).filter((s) => s.name && s.value),
+        parts: (form.parts || [])
+          .filter((p) => p && p.name && p.name.trim())
+          .map((p) => ({
+            id: p.id || `part-${Math.random().toString(36).slice(2, 7)}`,
+            name: p.name.trim(),
+            allowedColors: Array.isArray(p.allowedColors)
+              ? p.allowedColors.map((c) => c.trim()).filter(Boolean)
+              : typeof p.allowedColors === 'string'
+              ? p.allowedColors.split(',').map((c) => c.trim()).filter(Boolean)
+              : ['Black', 'White'],
+          })),
       }
       await api.adminSaveProduct(payload, id)
       navigate(`${adminBase}/products`)
@@ -176,12 +190,16 @@ export default function AdminProductForm() {
               <option value="ARCHIVED">Archived</option>
             </select>
           </label>
-          <div className="flex gap-4 text-sm">
+          <div className="flex flex-wrap gap-4 text-sm">
         {['isFeatured', 'isNew', 'isBestSeller'].map((k) => (
           <label key={k} className="flex gap-2">
             <input type="checkbox" checked={!!form[k]} onChange={(e) => set(k, e.target.checked)} /> {k}
           </label>
         ))}
+        <label className="flex gap-2 text-[#c5a059]">
+          <input type="checkbox" checked={!!form.allowCustomization} onChange={(e) => set('allowCustomization', e.target.checked)} />
+          allowCustomization
+        </label>
       </div>
           <fieldset className="mt-4 space-y-2">
             <legend className="text-xs uppercase text-white/40">Payments accepted</legend>
@@ -229,6 +247,95 @@ export default function AdminProductForm() {
           + Add Specification
         </button>
       </div>
+
+      <div className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-[#c5a059] font-bold">Components & Multi-Color Configuration</div>
+            <p className="text-[11px] text-white/50 mt-0.5">
+              Define separate printable parts (e.g. Main Body, Front Panel, Buttons) and the allowed colors for each part.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="text-[11px] text-[#c5a059] hover:underline"
+            onClick={() => {
+              set('parts', [
+                { id: 'part-body', name: 'Main Body', allowedColors: ['Black', 'White', 'Grey', 'Orange'] },
+                { id: 'part-panel', name: 'Front Panel', allowedColors: ['Orange', 'Blue', 'Black', 'White'] },
+                { id: 'part-buttons', name: 'Buttons', allowedColors: ['White', 'Yellow', 'Red', 'Black'] },
+                { id: 'part-logo', name: 'Logo / Accent', allowedColors: ['Blue', 'White', 'Orange'] },
+              ])
+            }}
+          >
+            + Load Enclosure Preset
+          </button>
+        </div>
+
+        {(form.parts || []).map((part, i) => (
+          <div key={part.id || i} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center bg-black/40 p-2.5 rounded border border-white/5">
+            <div className="md:col-span-4">
+              <label className="block text-[10px] uppercase text-white/40 mb-1">Part / Component Name</label>
+              <input
+                className="field-input text-xs"
+                placeholder="e.g. Main Body"
+                value={part.name || ''}
+                onChange={(e) => {
+                  const next = [...(form.parts || [])]
+                  next[i] = { ...part, name: e.target.value }
+                  set('parts', next)
+                }}
+              />
+            </div>
+            <div className="md:col-span-7">
+              <label className="block text-[10px] uppercase text-white/40 mb-1">Allowed Colors (comma separated)</label>
+              <input
+                className="field-input text-xs"
+                placeholder="e.g. Black, White, Orange, Blue"
+                value={Array.isArray(part.allowedColors) ? part.allowedColors.join(', ') : (part.allowedColors || '')}
+                onChange={(e) => {
+                  const next = [...(form.parts || [])]
+                  next[i] = { ...part, allowedColors: e.target.value }
+                  set('parts', next)
+                }}
+              />
+            </div>
+            <div className="md:col-span-1 flex justify-end pt-3 md:pt-0">
+              <button
+                type="button"
+                className="text-xs text-red-400 hover:text-red-300 p-1"
+                onClick={() => {
+                  const next = (form.parts || []).filter((_, idx) => idx !== i)
+                  set('parts', next)
+                }}
+                title="Remove part"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        ))}
+
+        <div className="flex gap-3 pt-1">
+          <button
+            type="button"
+            className="text-xs text-[#c5a059] font-medium hover:underline"
+            onClick={() => {
+              set('parts', [
+                ...(form.parts || []),
+                {
+                  id: `part-${Date.now().toString(36)}`,
+                  name: '',
+                  allowedColors: ['Black', 'White', 'Orange', 'Blue'],
+                },
+              ])
+            }}
+          >
+            + Add Component / Part
+          </button>
+        </div>
+      </div>
+
       {err && <p className="text-red-400">{err}</p>}
       <div className="flex gap-3">
         <button type="button" className="btn-outline-white w-auto" onClick={() => navigate(`${adminBase}/products`)}>

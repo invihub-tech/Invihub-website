@@ -17,6 +17,7 @@ import {
   Layers,
   HelpCircle,
   Clock,
+  Wrench,
 } from 'lucide-react'
 import { api, inr } from '../../../models/api'
 import ProductCard from '../components/ProductCard'
@@ -34,6 +35,21 @@ const FILAMENT_COLORS = [
 
 const WEIGHT_OPTIONS = ['250g', '500g', '1kg', '2kg']
 
+function getColorHex(colorName = '') {
+  const c = String(colorName || '').toLowerCase()
+  if (c.includes('black')) return '#111827'
+  if (c.includes('white')) return '#f8fafc'
+  if (c.includes('orange')) return '#ea580c'
+  if (c.includes('blue')) return '#2563eb'
+  if (c.includes('red')) return '#dc2626'
+  if (c.includes('green')) return '#16a34a'
+  if (c.includes('grey') || c.includes('gray')) return '#64748b'
+  if (c.includes('yellow')) return '#eab308'
+  if (c.includes('purple')) return '#9333ea'
+  if (c.includes('gold')) return '#d97706'
+  return '#cbd5e1'
+}
+
 export default function ProductDetail() {
   const { slug } = useParams()
   const navigate = useNavigate()
@@ -48,6 +64,7 @@ export default function ProductDetail() {
   const [added, setAdded] = useState(false)
   const [selectedColor, setSelectedColor] = useState(0)
   const [selectedWeight, setSelectedWeight] = useState('1kg')
+  const [selectedPartColors, setSelectedPartColors] = useState({})
   const [err, setErr] = useState('')
 
   const load = () => {
@@ -58,6 +75,13 @@ export default function ProductDetail() {
       .then((d) => {
         setData(d)
         setPageStatus(null)
+        if (d?.product?.parts?.length) {
+          const init = {}
+          d.product.parts.forEach((part) => {
+            init[part.name] = part.allowedColors?.[0] || 'Black'
+          })
+          setSelectedPartColors(init)
+        }
       })
       .catch((e) => setPageStatus(e.status ?? 500))
   }
@@ -310,6 +334,84 @@ export default function ProductDetail() {
             </div>
           )}
 
+          {/* Multi-Component Color Selector (for 3D printed / multi-color products) */}
+          {p.parts?.length > 0 && (
+            <div className="rounded-xl border border-orange-200 bg-orange-50/70 p-4 space-y-3.5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Layers size={16} className="text-[#f97316]" />
+                  <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                    Multi-Color Component Setup
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold text-orange-700 bg-white px-2 py-0.5 rounded-full border border-orange-200">
+                  Custom Colors Per Part
+                </span>
+              </div>
+              <p className="text-[12px] text-slate-600 leading-snug">
+                This product is manufactured with distinct parts. Select your preferred color for each component:
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                {p.parts.map((part) => {
+                  const currentColor = selectedPartColors[part.name] || part.allowedColors?.[0] || 'Black'
+                  const colorHex = getColorHex(currentColor)
+                  return (
+                    <div
+                      key={part.id || part.name}
+                      className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm space-y-1.5 transition-all hover:border-orange-300"
+                    >
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+                        <span>{part.name}</span>
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-normal">
+                          <span
+                            className="inline-block w-3 h-3 rounded-full border border-slate-300 shadow-inner"
+                            style={{ backgroundColor: colorHex }}
+                          />
+                          <span className="font-semibold text-slate-700">{currentColor}</span>
+                        </div>
+                      </div>
+                      <select
+                        className="w-full rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-800 focus:border-orange-500 focus:bg-white focus:outline-none"
+                        value={currentColor}
+                        onChange={(e) =>
+                          setSelectedPartColors((prev) => ({
+                            ...prev,
+                            [part.name]: e.target.value,
+                          }))
+                        }
+                      >
+                        {(part.allowedColors || ['Black', 'White', 'Orange', 'Blue']).map((col) => (
+                          <option key={col} value={col}>
+                            {col}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Color Summary Bar */}
+              <div className="pt-2 border-t border-orange-200/60 flex flex-wrap items-center gap-1.5 text-[11px]">
+                <span className="font-bold text-slate-700">Configuration:</span>
+                {Object.entries(selectedPartColors).map(([partName, col]) => (
+                  <span
+                    key={partName}
+                    className="inline-flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-700 font-medium"
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full border border-slate-300"
+                      style={{ backgroundColor: getColorHex(col) }}
+                    />
+                    <span>{partName}:</span>
+                    <strong className="text-orange-600">{col}</strong>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Stock & Quantity Stepper */}
           <div className="flex items-center gap-6 pt-2">
             <div>
@@ -379,6 +481,21 @@ export default function ProductDetail() {
               <span>Buy Now</span>
             </button>
           </div>
+
+          {/* Customization CTA */}
+          {p.allowCustomization && (
+            <Link
+              to={`/shop/customize?product=${p.slug}${
+                Object.keys(selectedPartColors).length > 0
+                  ? `&parts=${encodeURIComponent(JSON.stringify(selectedPartColors))}`
+                  : ''
+              }`}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-orange-400/40 bg-orange-50 px-4 py-3 text-xs font-bold text-orange-700 hover:border-orange-500 hover:bg-orange-100 transition"
+            >
+              <Wrench size={15} />
+              <span>Customize This Product — Get a Custom Print Quote</span>
+            </Link>
+          )}
 
           {/* Trust Guarantees */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-slate-100 text-center text-xs text-slate-600">

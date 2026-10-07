@@ -1,10 +1,12 @@
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import {
   LayoutDashboard,
   Package,
   FolderTree,
   ShoppingBag,
   Warehouse,
+  ClipboardList,
   LogOut,
 } from 'lucide-react'
 import { api } from '../../../models/api'
@@ -16,6 +18,14 @@ export default function AdminShell() {
   const navigate = useNavigate()
   const location = useLocation()
   const atAdminRoot = location.pathname.replace(/\/$/, '') === adminBase.replace(/\/$/, '')
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      navigate(`${adminBase}/login`, { replace: true })
+    }
+    window.addEventListener('invi-admin-unauthorized', handleUnauthorized)
+    return () => window.removeEventListener('invi-admin-unauthorized', handleUnauthorized)
+  }, [navigate])
 
   if (atAdminRoot) return <Navigate to={`${adminBase}/login`} replace />
   if (ok === null) return <div className="min-h-screen bg-[#0a0a0a] p-10 text-white/50">Loading…</div>
@@ -46,6 +56,7 @@ export default function AdminShell() {
           {item(`${adminBase}/categories`, 'Categories', FolderTree)}
           {item(`${adminBase}/orders`, 'Orders', ShoppingBag)}
           {item(`${adminBase}/inventory`, 'Inventory', Warehouse)}
+          {item(`${adminBase}/custom-requests`, 'Custom Requests', ClipboardList)}
         </nav>
         <button
           type="button"

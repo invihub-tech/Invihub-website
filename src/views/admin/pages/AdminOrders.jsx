@@ -7,7 +7,7 @@ import StatusBadge from '../../ui/StatusBadge'
 export default function AdminOrders() {
   const [rows, setRows] = useState([])
   useEffect(() => {
-    api.adminOrders().then(setRows)
+    api.adminOrders().then(setRows).catch(() => {})
   }, [])
   return (
     <div>

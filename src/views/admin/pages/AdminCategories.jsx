@@ -9,7 +9,7 @@ export default function AdminCategories() {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ name: '', slug: '', description: '', imageUrl: '' })
-  const load = () => api.adminCategories().then(setRows)
+  const load = () => api.adminCategories().then(setRows).catch(() => {})
   useEffect(() => {
     load()
   }, [])

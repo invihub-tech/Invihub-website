@@ -83,7 +83,7 @@ on conflict (slug) do update set
   is_best_seller = excluded.is_best_seller,
   status = excluded.status;
 
-delete from public.product_specifications where product_id in ('seed_prod_ebox', 'seed_prod_arm', 'seed_prod_hand');
+delete from public.product_specifications where product_id in ('seed_prod_ebox', 'seed_prod_arm', 'seed_prod_hand', 'demo_prod_multi_enclosure');
 
 insert into public.product_specifications (product_id, name, value, sort_order) values
   ('seed_prod_ebox', 'Material', 'ABS', 0),
@@ -93,12 +93,18 @@ insert into public.product_specifications (product_id, name, value, sort_order) 
   ('seed_prod_arm', 'Axes', '6 DOF', 0),
   ('seed_prod_arm', 'Use', 'Education / DIY', 1),
   ('seed_prod_hand', 'Fingers', '5', 0),
-  ('seed_prod_hand', 'Interface', 'Microcontroller', 1);
+  ('seed_prod_hand', 'Interface', 'Microcontroller', 1),
+  ('demo_prod_multi_enclosure', 'Material', 'High-Impact PETG / ABS', 0),
+  ('demo_prod_multi_enclosure', 'Color Configuration', '4-Part Multi-Color (Body, Panel, Buttons, Logo)', 1),
+  ('demo_prod_multi_enclosure', 'External Dimensions', '140 × 95 × 48 mm', 2),
+  ('demo_prod_multi_enclosure', 'Mounting', 'M3 Brass Threaded Inserts', 3);
 
 -- Catalogue images from existing public assets (same paths the Vite SPA serves)
-delete from public.product_images where product_id in ('seed_prod_ebox', 'seed_prod_arm', 'seed_prod_hand');
+delete from public.product_images where product_id in ('seed_prod_ebox', 'seed_prod_arm', 'seed_prod_hand', 'demo_prod_multi_enclosure');
 
 insert into public.product_images (product_id, url, alt, sort_order, is_primary) values
   ('seed_prod_ebox', '/images/hero-product.png', 'INVI E-BOX', 0, true),
   ('seed_prod_arm', '/images/service-automation.png', '6 DOF Robotic Arm', 0, true),
-  ('seed_prod_hand', '/images/process-innovate.png', 'Prosthetic Hand', 0, true);
+  ('seed_prod_hand', '/images/process-innovate.png', 'Prosthetic Hand', 0, true),
+  ('demo_prod_multi_enclosure', '/images/service-3d-printing.png', 'Custom 3D Printed Modular Enclosure', 0, true);
+
