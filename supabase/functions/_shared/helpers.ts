@@ -5,6 +5,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
   'https://www.invihub.com',
   'http://localhost:5173',
   'http://localhost:5174',
+  'http://localhost:5175',
   'http://localhost:4173',
   'http://localhost:3000',
 ]
@@ -44,7 +45,7 @@ export function corsHeaders(req: Request) {
   const headers: Record<string, string> = {
     'Access-Control-Allow-Headers':
       'authorization, x-client-info, apikey, content-type, x-cart-token, x-order-access-token',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD',
     Vary: 'Origin',
   }
   if (ok && origin) {

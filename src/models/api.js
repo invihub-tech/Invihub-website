@@ -11,15 +11,28 @@ export class ApiError extends Error {
 }
 
 async function authHeaders() {
+  const usingProxy = Boolean(import.meta.env.VITE_API_URL)
   const headers = {
     'Content-Type': 'application/json',
-    apikey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
     'x-cart-token': getCartToken(),
+  }
+  // Only send the raw apikey from the browser when NOT going through the proxy.
+  // In proxy mode the Vite server injects it server-side so it's never visible in DevTools.
+  if (!usingProxy) {
+    headers.apikey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
   }
   if (supabase) {
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
-    headers.Authorization = `Bearer ${token || import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`
+    if (token) {
+      // Logged-in user: send JWT so the backend can identify them
+      headers.Authorization = `Bearer ${token}`
+    } else if (!usingProxy) {
+      // Guest + direct call (no proxy): fall back to anon key
+      headers.Authorization = `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`
+    }
+    // In proxy mode without a session: no Authorization header — the proxy's
+    // server-side apikey header is sufficient for unauthenticated calls.
   }
   return headers
 }
@@ -210,10 +223,14 @@ export const api = {
 
   // Custom requests
   submitCustomRequest: (body) => edge('/customizations/submit', { method: 'POST', body }),
+  lookupCustomRequest: (email, requestNumber) =>
+    edge('/customizations/lookup', { method: 'POST', body: { email, requestNumber } }),
   adminCustomRequests: () => edge('/admin/custom-requests'),
   adminCustomRequest: (id) => edge(`/admin/custom-requests/${id}`),
   adminUpdateCustomRequest: (id, body) =>
     edge(`/admin/custom-requests/${id}`, { method: 'PATCH', body }),
+  adminCleanupExpiredInventory: (timeoutMinutes = 60) =>
+    edge('/admin/inventory/cleanup-expired', { method: 'POST', body: { timeoutMinutes } }),
 
   upload: async (file) => {
     const buf = await file.arrayBuffer()

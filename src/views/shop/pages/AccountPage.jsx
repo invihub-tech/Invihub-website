@@ -1,7 +1,23 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { api, inr } from '../../../models/api'
-import { User, Package, MapPin, Heart, Search, LogOut, ArrowRight, ShieldCheck } from 'lucide-react'
+import {
+  User,
+  Package,
+  MapPin,
+  Heart,
+  Search,
+  LogOut,
+  ArrowRight,
+  ShieldCheck,
+  Wrench,
+  FileText,
+  Download,
+  CheckCircle2,
+  Clock,
+  Sparkles,
+} from 'lucide-react'
+import CustomRequestStatusTracker from '../../ui/CustomRequestStatusTracker'
 
 export default function AccountPage() {
   const navigate = useNavigate()
@@ -9,6 +25,7 @@ export default function AccountPage() {
   const [tab, setTab] = useState('orders')
   const [email, setEmail] = useState('')
   const [orderNumber, setOrderNumber] = useState('')
+  const [trackingMode, setTrackingMode] = useState('auto') // 'auto' | 'order' | 'custom'
   const [guestOrders, setGuestOrders] = useState(null)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -32,10 +49,25 @@ export default function AccountPage() {
     e.preventDefault()
     setBusy(true)
     setErr('')
+    const trimmedId = orderNumber.trim()
+    const isCustom = trackingMode === 'custom' || trimmedId.toUpperCase().startsWith('CR-')
     try {
-      setGuestOrders(await api.lookupOrders(email, orderNumber))
+      if (isCustom) {
+        const res = await api.lookupCustomRequest(email, trimmedId)
+        setGuestOrders({ ...res, isCustomRequest: true })
+      } else {
+        const res = await api.lookupOrders(email, trimmedId)
+        setGuestOrders(res)
+      }
     } catch (ex) {
-      setErr(ex.message)
+      if (!isCustom) {
+        try {
+          const res = await api.lookupCustomRequest(email, trimmedId)
+          setGuestOrders({ ...res, isCustomRequest: true })
+          return
+        } catch { /* fallback */ }
+      }
+      setErr(ex.message || 'Reference ID not found for this email.')
       setGuestOrders(null)
     } finally {
       setBusy(false)
@@ -84,10 +116,28 @@ export default function AccountPage() {
           <div className="pt-6 border-t border-slate-100 space-y-3">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
               <Search size={15} className="text-[#f97316]" />
-              <span>Track Guest Order</span>
+              <span>Track Your Order</span>
             </h2>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setTrackingMode('order')}
+                className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors ${trackingMode !== 'custom' ? 'bg-orange-100 border-orange-300 text-orange-700' : 'border-slate-200 text-slate-500 hover:text-slate-700'}`}
+              >
+                Regular Order
+              </button>
+              <button
+                type="button"
+                onClick={() => setTrackingMode('custom')}
+                className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors ${trackingMode === 'custom' ? 'bg-orange-100 border-orange-300 text-orange-700' : 'border-slate-200 text-slate-500 hover:text-slate-700'}`}
+              >
+                <span className="flex items-center gap-1"><Sparkles size={11} /> Custom Request</span>
+              </button>
+            </div>
             <p className="text-xs text-slate-500">
-              Enter the email address used during checkout along with your Order Reference ID.
+              {trackingMode === 'custom'
+                ? 'Enter the email used when you submitted the request and your CR-XXXXXXXX reference number.'
+                : 'Enter the email address used during checkout along with your Order Number (e.g. INV-1001).'}
             </p>
 
             <form onSubmit={lookup} className="flex flex-col sm:flex-row gap-3">
@@ -103,7 +153,7 @@ export default function AccountPage() {
                 required
                 value={orderNumber}
                 onChange={(e) => setOrderNumber(e.target.value)}
-                placeholder="Order Number (e.g. INV-1001)"
+                placeholder={trackingMode === 'custom' ? 'Request Number (e.g. CR-XXXXXXXX)' : 'Order Number (e.g. INV-1001)'}
                 className="flex-1 px-3.5 py-2.5 rounded-lg border border-slate-200 text-xs text-slate-900 outline-none focus:border-[#f97316] focus:ring-1 focus:ring-orange-500"
               />
               <button
@@ -117,7 +167,7 @@ export default function AccountPage() {
 
             {err && <div className="text-xs text-red-600 bg-red-50 p-2.5 rounded border border-red-200">{err}</div>}
 
-            {guestOrders && (
+            {guestOrders && !guestOrders.isCustomRequest && (
               <div className="mt-4 p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
                 <div>
                   <span className="font-bold text-sm text-slate-900">{guestOrders.orderNumber}</span>
@@ -136,6 +186,107 @@ export default function AccountPage() {
                 >
                   View Details
                 </button>
+              </div>
+            )}
+
+            {guestOrders && guestOrders.isCustomRequest && (
+              <div className="mt-4 rounded-xl border border-orange-200 bg-orange-50/40 p-5 space-y-4">
+                {/* Header */}
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Sparkles size={15} className="text-[#f97316]" />
+                      <span className="font-bold text-sm text-slate-900">{guestOrders.requestNumber}</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Custom Print Request
+                      {guestOrders.product?.name && (
+                        <> · <strong className="text-slate-700">{guestOrders.product.name}</strong></>
+                      )}
+                    </p>
+                  </div>
+                  <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                    guestOrders.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
+                    guestOrders.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
+                    guestOrders.status === 'IN_PRODUCTION' ? 'bg-blue-100 text-blue-700' :
+                    'bg-orange-100 text-orange-700'
+                  }`}>
+                    {guestOrders.status}
+                  </span>
+                </div>
+
+                {/* Status Stepper */}
+                <CustomRequestStatusTracker status={guestOrders.status} />
+
+                {/* Quotation info (if QUOTED or beyond) */}
+                {guestOrders.quotation?.price && (
+                  <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-1">
+                    <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <FileText size={13} className="text-[#f97316]" /> Quotation Details
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div className="text-xs">
+                        <span className="text-slate-500">Price: </span>
+                        <strong className="text-slate-900">{inr(guestOrders.quotation.price)}</strong>
+                      </div>
+                      {guestOrders.quotation.estimatedDays && (
+                        <div className="text-xs">
+                          <span className="text-slate-500">Est. time: </span>
+                          <strong className="text-slate-900">{guestOrders.quotation.estimatedDays} days</strong>
+                        </div>
+                      )}
+                    </div>
+                    {guestOrders.quotation.notes && (
+                      <p className="text-xs text-slate-500 pt-1">{guestOrders.quotation.notes}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Admin notes (if any) */}
+                {guestOrders.adminNotes && (
+                  <div className="rounded-lg border border-slate-200 bg-white p-3">
+                    <p className="text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
+                      <Wrench size={13} className="text-[#f97316]" /> Notes from Team
+                    </p>
+                    <p className="text-xs text-slate-600">{guestOrders.adminNotes}</p>
+                  </div>
+                )}
+
+                {/* Files */}
+                {guestOrders.files?.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <Download size={13} className="text-[#f97316]" /> Attached Files
+                    </p>
+                    {guestOrders.files.map((f) => (
+                      <a
+                        key={f.id}
+                        href={f.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 text-xs bg-white border border-slate-200 rounded-lg px-3 py-2 hover:border-orange-300 hover:text-[#f97316] transition-colors truncate"
+                      >
+                        <Download size={12} className="shrink-0" />
+                        <span className="truncate">{f.fileName}</span>
+                        {f.fileSize && (
+                          <span className="ml-auto shrink-0 text-slate-400">
+                            {(f.fileSize / 1024).toFixed(0)} KB
+                          </span>
+                        )}
+                      </a>
+                    ))}
+                  </div>
+                )}
+
+                {/* Request meta */}
+                <div className="pt-2 border-t border-orange-100 text-[11px] text-slate-400 flex flex-wrap gap-x-4 gap-y-1">
+                  {guestOrders.material && <span>Material: <strong>{guestOrders.material}</strong></span>}
+                  {guestOrders.color && <span>Color: <strong>{guestOrders.color}</strong></span>}
+                  {guestOrders.quantity && <span>Qty: <strong>{guestOrders.quantity}</strong></span>}
+                  {guestOrders.createdAt && (
+                    <span>Submitted: <strong>{new Date(guestOrders.createdAt).toLocaleDateString()}</strong></span>
+                  )}
+                </div>
               </div>
             )}
           </div>

@@ -177,7 +177,7 @@ function serializeOrderAdmin(o: any) {
   }
 }
 
-function serializeCustomRequest(r: any) {
+async function serializeCustomRequest(r: any, sbClient?: any) {
   let quotation: any = {}
   try { quotation = JSON.parse(r.quotation_json || '{}') } catch { /* ignore */ }
   let dimensions: any = {}
@@ -186,6 +186,28 @@ function serializeCustomRequest(r: any) {
   try { printingRequirements = JSON.parse(r.printing_requirements_json || '{}') } catch { /* ignore */ }
   let finishing: any = []
   try { finishing = JSON.parse(r.finishing_json || '[]') } catch { /* ignore */ }
+
+  const files = await Promise.all(
+    (r.customization_files || []).map(async (f: any) => {
+      let fileUrl = f.url || ''
+      if (sbClient && f.storage_path) {
+        try {
+          const { data } = await sbClient.storage.from('customizations').createSignedUrl(f.storage_path, 7200)
+          if (data?.signedUrl) fileUrl = data.signedUrl
+        } catch { /* ignore */ }
+      }
+      return {
+        id: f.id,
+        fileName: f.file_name,
+        fileType: f.file_type,
+        fileSize: f.file_size,
+        fileCategory: f.file_category,
+        storagePath: f.storage_path,
+        url: fileUrl,
+        createdAt: f.created_at,
+      }
+    })
+  )
 
   return {
     id: r.id,
@@ -207,16 +229,7 @@ function serializeCustomRequest(r: any) {
     dimensions,
     printingRequirements,
     finishing,
-    files: (r.customization_files || []).map((f: any) => ({
-      id: f.id,
-      fileName: f.file_name,
-      fileType: f.file_type,
-      fileSize: f.file_size,
-      fileCategory: f.file_category,
-      storagePath: f.storage_path,
-      url: f.url,
-      createdAt: f.created_at,
-    })),
+    files,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   }
@@ -904,6 +917,19 @@ Deno.serve(async (req) => {
         return err(req, 'Too many lookups. Try again later.', 429)
       }
       recordRateLimit(lookupAttempts, key)
+      if (orderNumber.toUpperCase().startsWith('CR-')) {
+        const { data: customRow } = await sb
+          .from('customization_requests')
+          .select(CUSTOM_REQUEST_EMBED)
+          .ilike('customer_email', email)
+          .eq('request_number', orderNumber.toUpperCase())
+          .maybeSingle()
+        if (customRow) {
+          const serialized = await serializeCustomRequest(customRow, sb)
+          return json(req, { ...serialized, isCustomRequest: true })
+        }
+        return err(req, 'Custom request not found for this email', 404)
+      }
       if (!email.includes('@') || !orderNumber || !accessToken) {
         return err(req, 'Email, order number, and access token are required')
       }
@@ -1013,6 +1039,18 @@ Deno.serve(async (req) => {
         .eq('customer_id', auth.customer.id)
         .order('created_at', { ascending: false })
         .limit(50)
+
+      const { data: customReqRows } = await auth.sb
+        .from('customization_requests')
+        .select(CUSTOM_REQUEST_EMBED)
+        .or(`customer_id.eq.${auth.customer.id},customer_email.eq.${auth.customer.email}`)
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      const customRequests = await Promise.all(
+        (customReqRows || []).map((r: any) => serializeCustomRequest(r, auth.sb))
+      )
+
       return json(req, {
         customer: publicCustomer(customer),
         addresses: (addresses || []).map(serializeAddress),
@@ -1033,6 +1071,7 @@ Deno.serve(async (req) => {
             lineTotal: i.line_total,
           })),
         })),
+        customRequests,
       })
     }
 
@@ -1229,6 +1268,37 @@ Deno.serve(async (req) => {
         requestNumber: inserted.request_number,
         status: inserted.status,
       })
+    }
+
+    // ── CUSTOMER: Track / Lookup Custom Request ─────────────────────────────
+    if (match(method, path, 'POST', '/customizations/lookup')) {
+      const body = await readBody(req)
+      if (body === null) return err(req, 'Invalid JSON')
+      const email = String(body.email || '').trim().toLowerCase()
+      const reqNum = String(body.requestNumber || body.orderNumber || '').trim().toUpperCase()
+      if (!email.includes('@') || !reqNum) {
+        return err(req, 'Email and Request Reference (e.g. CR-...) are required', 400)
+      }
+      const ip = req.headers.get('x-forwarded-for') || 'unknown'
+      const key = `${ip}|${email}`
+      if (!assertRateLimit(lookupAttempts, key, 30)) {
+        return err(req, 'Too many lookups. Try again later.', 429)
+      }
+      recordRateLimit(lookupAttempts, key)
+
+      const { data: row } = await sb
+        .from('customization_requests')
+        .select(CUSTOM_REQUEST_EMBED)
+        .ilike('customer_email', email)
+        .eq('request_number', reqNum)
+        .maybeSingle()
+
+      if (!row) {
+        return err(req, 'Custom request not found. Please verify the email and reference number.', 404)
+      }
+
+      const serialized = await serializeCustomRequest(row, sb)
+      return json(req, serialized)
     }
 
     // ---------- ADMIN ----------
@@ -1871,13 +1941,22 @@ Deno.serve(async (req) => {
         return json(req, next)
       }
 
+      if (match(method, path, 'POST', '/admin/inventory/cleanup-expired')) {
+        const body = (await readBody(req)) || {}
+        const mins = Number(body.timeoutMinutes) || 60
+        const { data, error } = await asb.rpc('cleanup_expired_pending_orders', { p_timeout_minutes: mins })
+        if (error) return err(req, error.message, 500)
+        return json(req, data || { cleanedCount: 0 })
+      }
+
       // ── ADMIN: Custom Requests ──────────────────────────────────────────────
       if (match(method, path, 'GET', '/admin/custom-requests')) {
         const { data: rows } = await asb
           .from('customization_requests')
           .select(CUSTOM_REQUEST_EMBED)
           .order('created_at', { ascending: false })
-        return json(req, (rows || []).map(serializeCustomRequest))
+        const serialized = await Promise.all((rows || []).map((r: any) => serializeCustomRequest(r, asb)))
+        return json(req, serialized)
       }
 
       {
@@ -1889,7 +1968,7 @@ Deno.serve(async (req) => {
             .eq('id', m.id)
             .single()
           if (!row) return err(req, 'Not found', 404)
-          return json(req, serializeCustomRequest(row))
+          return json(req, await serializeCustomRequest(row, asb))
         }
       }
 
@@ -1913,7 +1992,7 @@ Deno.serve(async (req) => {
             .select(CUSTOM_REQUEST_EMBED)
             .single()
           if (ue) return err(req, ue.message, 500)
-          return json(req, serializeCustomRequest(updated))
+          return json(req, await serializeCustomRequest(updated, asb))
         }
       }
 

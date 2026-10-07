@@ -114,14 +114,18 @@ export default function CustomizePage() {
     const { error } = await supabase.storage.from('customizations').upload(path, file, {
       contentType: file.type || 'application/octet-stream',
     })
-    if (error) return null
-    const { data: urlData } = supabase.storage.from('customizations').getPublicUrl(path)
+    if (error) {
+      console.error('File upload error:', error.message)
+      return null
+    }
+    // Bucket is private — do NOT call getPublicUrl.
+    // The edge function generates short-lived signed URLs on retrieval.
     return {
       fileName: file.name,
       fileType: file.type || '',
       fileSize: file.size,
       storagePath: path,
-      url: urlData?.publicUrl || '',
+      url: '', // will be populated as a signed URL by the backend
     }
   }
 
@@ -169,7 +173,11 @@ export default function CustomizePage() {
         </div>
         <h1 className="text-2xl font-bold text-slate-800 mb-2">Request Submitted!</h1>
         <p className="text-slate-500 mb-1">Your custom request has been received.</p>
-        <p className="font-mono text-orange-600 text-sm font-semibold mb-6">{success.requestNumber}</p>
+        <div className="my-4 rounded-xl border border-orange-200 bg-orange-50 px-6 py-4 inline-block">
+          <p className="text-xs text-slate-500 mb-1">Your Reference Number</p>
+          <p className="font-mono text-orange-600 text-lg font-bold tracking-widest">{success.requestNumber}</p>
+          <p className="text-[11px] text-slate-400 mt-1">Save this — you'll need it to track your request</p>
+        </div>
         <p className="text-slate-500 text-sm mb-8">
           We'll review your requirements and get back to you with a quotation within 1–2 business days.
           Keep an eye on the email you provided.
@@ -177,6 +185,9 @@ export default function CustomizePage() {
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link to="/shop" className="rounded-lg bg-orange-500 px-6 py-3 text-sm font-semibold text-white hover:bg-orange-600 transition">
             Continue Shopping
+          </Link>
+          <Link to="/shop/account" className="rounded-lg border border-orange-300 bg-orange-50 px-6 py-3 text-sm font-semibold text-orange-700 hover:bg-orange-100 transition">
+            Track this Request →
           </Link>
           {productSlug && (
             <Link to={`/shop/product/${productSlug}`} className="rounded-lg border border-slate-200 px-6 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
