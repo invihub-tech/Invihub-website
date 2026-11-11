@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Heart, ShoppingCart, Check, Star, Thermometer, Layers } from 'lucide-react'
+import { Heart, ShoppingCart, Check, Star, Thermometer } from 'lucide-react'
 import { api, inr } from '../../../models/api'
 import { useWishlist } from '../../../hooks/useWishlist'
 

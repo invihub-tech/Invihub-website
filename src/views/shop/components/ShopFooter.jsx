@@ -1,4 +1,4 @@
-import { ShieldCheck, Headphones, Truck, CreditCard, Sparkles, ArrowUpRight } from 'lucide-react'
+import { ShieldCheck, Headphones, Truck, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { ADMIN_KEY } from '../../../config/adminPath'
 

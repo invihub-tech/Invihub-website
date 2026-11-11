@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Layers, Sparkles, CheckCircle2 } from 'lucide-react'
+import { ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react'
 
 const FILAMENT_TYPES = [
   { name: 'PLA', desc: 'Easy printing, high detail, bio-based', temp: '190–220°C', bed: '50–60°C' },

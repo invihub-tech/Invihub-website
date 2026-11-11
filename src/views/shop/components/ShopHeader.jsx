@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { Search, ShoppingCart, User, Heart, ChevronDown, Sparkles, X, Clock, Flame } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Search, ShoppingCart, User, Heart, ChevronDown, X, Clock, Flame } from 'lucide-react'
 import { useCartBadge } from '../../../hooks/useCartBadge'
 import { useWishlist } from '../../../hooks/useWishlist'
 import { api } from '../../../models/api'

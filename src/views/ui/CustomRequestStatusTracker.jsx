@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, Wrench, PackageCheck, AlertCircle } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 
 export const CUSTOM_REQUEST_STAGES = [
   { key: 'NEW', label: 'Request Submitted', desc: 'Requirements received' },

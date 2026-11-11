@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from 'react-router-dom'
-import { CheckCircle2, Package, ArrowRight, ShieldCheck, Truck } from 'lucide-react'
+import { CheckCircle2, ArrowRight, ShieldCheck, Truck } from 'lucide-react'
 
 const payCopy = {
   RAZORPAY: 'Payment verified and confirmed via Razorpay',

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { api, inr } from '../../../models/api'
 import { PAYMENT_METHODS } from '../../../config/paymentMethods'
-import { ShieldCheck, Truck, CreditCard, ChevronRight, CheckCircle2, Lock } from 'lucide-react'
+import { ShieldCheck, Truck, CreditCard, CheckCircle2, Lock } from 'lucide-react'
 
 export default function CheckoutPage() {
   const navigate = useNavigate()

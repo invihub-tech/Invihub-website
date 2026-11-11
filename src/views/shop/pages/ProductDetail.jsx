@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ShieldCheck,
@@ -15,7 +15,6 @@ import {
   Zap,
   Thermometer,
   Layers,
-  HelpCircle,
   Clock,
   Wrench,
 } from 'lucide-react'
