@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Download, FileText, CheckCircle2,
-  Clock, Send, AlertCircle, Printer,
+  Clock, Send, Printer,
 } from 'lucide-react'
 import { api, inr } from '../../../models/api'
 import { adminBase } from '../../../config/adminPath'

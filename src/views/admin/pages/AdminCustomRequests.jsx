@@ -132,12 +132,12 @@ export default function AdminCustomRequests() {
                   <td className="px-4 py-3 text-xs text-white/40">
                     {new Date(r.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 text-right">
                     <Link
                       to={`${adminBase}/custom-requests/${r.id}`}
-                      className="flex items-center gap-1 text-xs text-[#c5a059] hover:underline"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-2.5 py-1 text-xs font-medium text-white/80 hover:bg-white/10 hover:text-white hover:border-white/30 transition-colors"
                     >
-                      <Eye size={13} /> View
+                      <Eye size={12} className="text-[#c5a059]" /> View
                     </Link>
                   </td>
                 </tr>

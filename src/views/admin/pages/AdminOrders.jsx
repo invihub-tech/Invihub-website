@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Eye } from 'lucide-react'
 import { api, inr } from '../../../models/api'
 import { adminBase } from '../../../config/adminPath'
 import StatusBadge from '../../ui/StatusBadge'
@@ -20,6 +21,7 @@ export default function AdminOrders() {
             <th>Amount</th>
             <th>Payment</th>
             <th>Status</th>
+            <th className="text-right pr-4">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -37,6 +39,14 @@ export default function AdminOrders() {
               </td>
               <td>
                 <StatusBadge value={o.orderStatus} />
+              </td>
+              <td className="py-3 text-right pr-4">
+                <Link
+                  to={`${adminBase}/orders/${o.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-2.5 py-1 text-xs font-medium text-white/80 hover:bg-white/10 hover:text-white hover:border-white/30 transition-colors"
+                >
+                  <Eye size={12} className="text-[#c5a059]" /> View
+                </Link>
               </td>
             </tr>
           ))}

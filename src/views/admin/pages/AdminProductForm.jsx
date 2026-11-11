@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { Trash2, ChevronDown, Check, X } from 'lucide-react'
 import { api } from '../../../models/api'
 import { adminBase } from '../../../config/adminPath'
 import { PAYMENT_METHODS } from '../../../config/paymentMethods'
@@ -9,6 +10,7 @@ const empty = {
   slug: '',
   sku: '',
   categoryId: '',
+  categoryIds: [],
   brand: 'INVIHUB',
   shortDescription: '',
   description: '',
@@ -37,6 +39,18 @@ export default function AdminProductForm() {
   const [cats, setCats] = useState([])
   const [form, setForm] = useState(empty)
   const [err, setErr] = useState('')
+  const [catDropdownOpen, setCatDropdownOpen] = useState(false)
+  const catDropdownRef = useRef(null)
+
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (catDropdownRef.current && !catDropdownRef.current.contains(e.target)) {
+        setCatDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [])
 
   useEffect(() => {
     api.adminCategories().then(setCats)
@@ -44,10 +58,16 @@ export default function AdminProductForm() {
       api.adminProducts().then((rows) => {
         const p = rows.find((r) => r.id === id)
         if (!p) return
+        const catIds = Array.isArray(p.categoryIds) && p.categoryIds.length > 0
+          ? p.categoryIds
+          : p.category?.id
+          ? [p.category.id]
+          : []
         setForm({
           ...empty,
           ...p,
-          categoryId: p.category?.id || '',
+          categoryId: catIds[0] || '',
+          categoryIds: catIds,
           features: p.features?.length ? p.features : [''],
           paymentMethods: p.paymentMethods?.length ? p.paymentMethods : ['RAZORPAY', 'COD'],
           specifications: p.specifications?.length ? p.specifications : [{ name: '', value: '' }],
@@ -65,9 +85,20 @@ export default function AdminProductForm() {
       setErr('Select at least one payment method')
       return
     }
+    const catIds = form.categoryIds?.length
+      ? form.categoryIds
+      : form.categoryId
+      ? [form.categoryId]
+      : []
+    if (!catIds.length) {
+      setErr('Please select at least one category')
+      return
+    }
     try {
       const payload = {
         ...form,
+        categoryId: catIds[0],
+        categoryIds: catIds,
         slug: form.slug || form.name.toLowerCase().replace(/\s+/g, '-'),
         features: (form.features || []).filter(Boolean),
         specifications: (form.specifications || []).filter((s) => s.name && s.value),
@@ -101,17 +132,145 @@ export default function AdminProductForm() {
               <input className="field-input mt-2" value={form[k] || ''} onChange={(e) => set(k, e.target.value)} required />
             </label>
           ))}
-          <label className="block text-xs uppercase text-white/40">
-            Category
-            <select className="field-input mt-2 bg-black" value={form.categoryId} onChange={(e) => set('categoryId', e.target.value)} required>
-              <option value="">Select</option>
-              {cats.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="space-y-1.5" ref={catDropdownRef}>
+            <div className="flex items-center justify-between">
+              <span className="block text-xs uppercase text-white/40">
+                Categories <span className="text-[#c5a059] font-normal lowercase">(select multiple in dropdown)</span>
+              </span>
+              {form.categoryIds?.length > 0 && (
+                <span className="text-xs text-[#c5a059] font-medium">
+                  {form.categoryIds.length} {form.categoryIds.length === 1 ? 'category selected' : 'categories selected'}
+                </span>
+              )}
+            </div>
+
+            {/* Custom Multi-Select Dropdown Field */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setCatDropdownOpen((prev) => !prev)}
+                className={`field-input !h-auto min-h-[44px] w-full bg-black/60 text-left flex items-center justify-between gap-2 py-2 cursor-pointer transition-all ${
+                  catDropdownOpen ? 'border-[#c5a059]/60 ring-1 ring-[#c5a059]/40' : ''
+                }`}
+              >
+                {form.categoryIds && form.categoryIds.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-1.5 flex-1">
+                    {form.categoryIds.map((id) => {
+                      const cat = cats.find((c) => c.id === id)
+                      if (!cat) return null
+                      return (
+                        <span
+                          key={id}
+                          className="inline-flex items-center gap-1.5 rounded-md bg-[#c5a059]/15 border border-[#c5a059]/30 px-2 py-0.5 text-xs text-[#c5a059] font-medium"
+                        >
+                          {cat.name}
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const next = form.categoryIds.filter((cid) => cid !== id)
+                              setForm((f) => ({
+                                ...f,
+                                categoryIds: next,
+                                categoryId: next[0] || '',
+                              }))
+                            }}
+                            className="hover:text-white text-[#c5a059]/60 cursor-pointer"
+                            title="Remove category"
+                          >
+                            <X size={12} />
+                          </span>
+                        </span>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <span className="text-xs text-white/40">Select one or more categories…</span>
+                )}
+                <ChevronDown
+                  size={16}
+                  className={`text-white/40 shrink-0 transition-transform duration-200 ${
+                    catDropdownOpen ? 'rotate-180 text-white' : ''
+                  }`}
+                />
+              </button>
+
+              {/* Popover Dropdown Menu */}
+              {catDropdownOpen && (
+                <div className="absolute left-0 right-0 top-full mt-1.5 z-40 rounded-xl border border-white/15 bg-[#141414] p-1.5 shadow-2xl backdrop-blur-md max-h-60 overflow-y-auto space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between px-2.5 py-1 text-[11px] text-white/40 border-b border-white/5 mb-1">
+                    <span>Click to check/uncheck categories</span>
+                    {form.categoryIds?.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((f) => ({
+                            ...f,
+                            categoryIds: [],
+                            categoryId: '',
+                          }))
+                        }
+                        className="text-[10px] text-amber-400 hover:text-amber-300"
+                      >
+                        Clear All
+                      </button>
+                    )}
+                  </div>
+                  {cats.map((c) => {
+                    const isSelected = (form.categoryIds || []).includes(c.id)
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          const current = form.categoryIds || []
+                          const next = isSelected
+                            ? current.filter((id) => id !== c.id)
+                            : [...current, c.id]
+                          setForm((f) => ({
+                            ...f,
+                            categoryIds: next,
+                            categoryId: next[0] || '',
+                          }))
+                        }}
+                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
+                          isSelected
+                            ? 'bg-[#c5a059]/15 text-[#c5a059]'
+                            : 'text-white/70 hover:bg-white/5 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className={`h-4 w-4 rounded border flex items-center justify-center transition-all ${
+                              isSelected
+                                ? 'border-[#c5a059] bg-[#c5a059] text-black'
+                                : 'border-white/20 bg-black/40'
+                            }`}
+                          >
+                            {isSelected && <Check size={12} strokeWidth={3} />}
+                          </div>
+                          <span>{c.name}</span>
+                        </div>
+                        {isSelected && (
+                          <span className="text-[10px] uppercase font-mono text-[#c5a059] tracking-wider">
+                            Selected
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                  {cats.length === 0 && (
+                    <div className="p-3 text-xs text-white/40 text-center italic">No categories available.</div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {(!form.categoryIds || form.categoryIds.length === 0) && (
+              <p className="text-[11px] text-amber-400/80">Please select at least one category.</p>
+            )}
+          </div>
           <label className="block text-xs uppercase text-white/40">
             Description
             <textarea className="field-input mt-2 h-32 py-3" value={form.description} onChange={(e) => set('description', e.target.value)} />
@@ -158,7 +317,7 @@ export default function AdminProductForm() {
                 <img src={im.url} alt="" className="h-20 w-24 rounded-md object-cover" />
                 <button
                   type="button"
-                  className="mt-1 w-full rounded-md border border-white/20 py-1 text-xs text-red-400"
+                  className="mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-md border border-red-500/30 bg-red-500/10 py-1 text-xs font-medium text-red-300 hover:bg-red-500/20 hover:border-red-500/50 transition-colors"
                   onClick={async () => {
                     try {
                       if (id) {
@@ -175,7 +334,7 @@ export default function AdminProductForm() {
                     }))
                   }}
                 >
-                  Delete
+                  <Trash2 size={12} /> Delete
                 </button>
               </div>
             ))}
@@ -303,14 +462,14 @@ export default function AdminProductForm() {
             <div className="md:col-span-1 flex justify-end pt-3 md:pt-0">
               <button
                 type="button"
-                className="text-xs text-red-400 hover:text-red-300 p-1"
+                className="inline-flex items-center gap-1 rounded-md border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-300 hover:bg-red-500/20 hover:border-red-500/50 transition-colors"
                 onClick={() => {
                   const next = (form.parts || []).filter((_, idx) => idx !== i)
                   set('parts', next)
                 }}
                 title="Remove part"
               >
-                ✕
+                <Trash2 size={12} /> Remove
               </button>
             </div>
           </div>

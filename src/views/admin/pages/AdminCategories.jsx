@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Pencil, Archive, RotateCcw } from 'lucide-react'
 import { api } from '../../../models/api'
 import { adminBase } from '../../../config/adminPath'
 import StatusBadge from '../../ui/StatusBadge'
@@ -8,7 +9,7 @@ export default function AdminCategories() {
   const [rows, setRows] = useState([])
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ name: '', slug: '', description: '', imageUrl: '' })
+  const [form, setForm] = useState({ name: '', slug: '', description: '' })
   const load = () => api.adminCategories().then(setRows).catch(() => {})
   useEffect(() => {
     load()
@@ -53,9 +54,8 @@ export default function AdminCategories() {
               name: form.name.trim(),
               slug: (form.slug || form.name).trim().toLowerCase().replace(/\s+/g, '-'),
               description: form.description,
-              imageUrl: form.imageUrl,
             })
-            setForm({ name: '', slug: '', description: '', imageUrl: '' })
+            setForm({ name: '', slug: '', description: '' })
             setOpen(false)
             load()
           }}
@@ -63,17 +63,6 @@ export default function AdminCategories() {
           <input className="field-input" placeholder="Name" required minLength={2} value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
           <input className="field-input" placeholder="Slug" value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))} />
           <textarea className="field-input h-24 py-3" placeholder="Description" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={async (e) => {
-              const file = e.target.files?.[0]
-              if (!file) return
-              const url = await api.upload(file)
-              setForm((f) => ({ ...f, imageUrl: url }))
-            }}
-          />
-          {form.imageUrl && <img src={form.imageUrl} alt="" className="h-16 w-16 object-cover" />}
           <div className="flex gap-2">
             <button className="btn-gold w-auto" type="submit">
               Save
@@ -88,16 +77,16 @@ export default function AdminCategories() {
         <table className="w-full">
           <thead className="text-left text-white/40">
             <tr>
-              <th className="py-2">Image</th>
+              <th className="py-2 w-16">Sl. No.</th>
               <th>Category</th>
               <th>Products</th>
               <th>Status</th>
               <th>Order</th>
-              <th />
+              <th className="text-right pr-4">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((c) => (
+            {filtered.map((c, idx) => (
               <tr
                 key={c.id}
                 draggable
@@ -106,8 +95,8 @@ export default function AdminCategories() {
                 onDrop={(e) => onDrop(e, c.id)}
                 className="border-t border-white/10"
               >
-                <td className="py-3">
-                  <img src={c.imageUrl || '/images/hero-product.png'} alt="" className="h-10 w-10 rounded-md object-cover" />
+                <td className="py-3 font-mono text-white/50 text-xs pl-2">
+                  {idx + 1}
                 </td>
                 <td>
                   <Link className="text-[#c5a059]" to={`${adminBase}/categories/${c.id}`}>
@@ -119,16 +108,32 @@ export default function AdminCategories() {
                   <StatusBadge value={c.status} />
                 </td>
                 <td>{c.sortOrder}</td>
-                <td className="space-x-3">
-                  {c.status === 'ACTIVE' ? (
-                    <button type="button" onClick={() => api.adminArchiveCategory(c.id).then(load)}>
-                      Archive
-                    </button>
-                  ) : (
-                    <button type="button" className="text-[#c5a059]" onClick={() => api.adminRestoreCategory(c.id).then(load)}>
-                      Restore
-                    </button>
-                  )}
+                <td className="py-3 text-right pr-4">
+                  <div className="inline-flex items-center gap-2">
+                    <Link
+                      to={`${adminBase}/categories/${c.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-300 hover:bg-amber-500/20 hover:border-amber-500/50 transition-colors"
+                    >
+                      <Pencil size={12} /> Edit
+                    </Link>
+                    {c.status === 'ACTIVE' ? (
+                      <button
+                        type="button"
+                        onClick={() => api.adminArchiveCategory(c.id).then(load)}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-orange-500/30 bg-orange-500/10 px-2.5 py-1 text-xs font-medium text-orange-300 hover:bg-orange-500/20 hover:border-orange-500/50 transition-colors"
+                      >
+                        <Archive size={12} /> Archive
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => api.adminRestoreCategory(c.id).then(load)}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-colors"
+                      >
+                        <RotateCcw size={12} /> Restore
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

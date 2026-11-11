@@ -29,7 +29,6 @@ export default function AdminCategoryDetail() {
           name: cat.name,
           slug: cat.slug,
           description: cat.description,
-          imageUrl: cat.imageUrl,
           status: cat.status,
           isFeatured: cat.isFeatured,
         },
@@ -57,21 +56,7 @@ export default function AdminCategoryDetail() {
         Description
         <textarea className="field-input mt-2 h-28 py-3" value={cat.description || ''} onChange={(e) => setCat({ ...cat, description: e.target.value })} />
       </label>
-      <div>
-        <div className="text-xs uppercase text-white/40">Category image</div>
-        <input
-          type="file"
-          className="mt-2 text-sm"
-          accept="image/png,image/jpeg,image/webp"
-          onChange={async (e) => {
-            const file = e.target.files?.[0]
-            if (!file) return
-            const url = await api.upload(file)
-            setCat({ ...cat, imageUrl: url })
-          }}
-        />
-        {cat.imageUrl && <img src={cat.imageUrl} alt="" className="mt-2 h-24 w-24 object-cover" />}
-      </div>
+
       <label className="flex gap-2 text-sm">
         <input type="checkbox" checked={cat.status === 'ACTIVE'} onChange={(e) => setCat({ ...cat, status: e.target.checked ? 'ACTIVE' : 'ARCHIVED' })} /> Active
       </label>

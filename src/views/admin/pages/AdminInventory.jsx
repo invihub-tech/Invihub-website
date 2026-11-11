@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Eye, Sliders, PlusCircle } from 'lucide-react'
 import { api, inr } from '../../../models/api'
 
 export default function AdminInventory() {
@@ -64,7 +65,7 @@ export default function AdminInventory() {
             <th>SKU</th>
             <th>Stock</th>
             <th>Status</th>
-            <th />
+            <th className="text-right pr-4">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -76,22 +77,33 @@ export default function AdminInventory() {
               <td>
                 <span className={p.status === 'Healthy' ? 'text-emerald-400' : p.status === 'Low' ? 'text-amber-300' : 'text-red-400'}>● {p.status}</span>
               </td>
-              <td className="space-x-3 text-[#c5a059]">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setViewId(p.id)
-                    api.adminInventoryHistory(p.id).then(setHistory)
-                  }}
-                >
-                  View
-                </button>
-                <button type="button" onClick={() => openAdjust(p)}>
-                  Adjust
-                </button>
-                <button type="button" onClick={() => openAdjust(p, true)}>
-                  Restock
-                </button>
+              <td className="py-3 text-right pr-4">
+                <div className="inline-flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewId(p.id)
+                      api.adminInventoryHistory(p.id).then(setHistory)
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-2.5 py-1 text-xs font-medium text-white/80 hover:bg-white/10 hover:text-white hover:border-white/30 transition-colors"
+                  >
+                    <Eye size={12} className="text-[#c5a059]" /> View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openAdjust(p)}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-300 hover:bg-blue-500/20 hover:border-blue-500/50 transition-colors"
+                  >
+                    <Sliders size={12} /> Adjust
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openAdjust(p, true)}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-colors"
+                  >
+                    <PlusCircle size={12} /> Restock
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
