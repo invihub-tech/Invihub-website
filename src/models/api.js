@@ -70,8 +70,9 @@ async function edge(path, options = {}) {
 }
 
 function rememberAccess(result, email) {
-  if (result?.orderNumber && result?.accessToken) {
-    saveOrderAccess(result.orderNumber, {
+  const num = result?.orderNumber || result?.requestNumber
+  if (num && result?.accessToken) {
+    saveOrderAccess(num, {
       token: result.accessToken,
       email: email || '',
       expiresAt: result.accessTokenExpiresAt || null,
@@ -206,11 +207,50 @@ export const api = {
   adminAssignProduct: (categoryId, productId) =>
     edge(`/admin/categories/${categoryId}/assign`, { method: 'POST', body: { productId } }),
   adminProducts: () => edge('/admin/products'),
+  adminProduct: async (id) => {
+    try {
+      return await edge(`/admin/products/${id}`)
+    } catch (err) {
+      if (supabase && (err.status === 404 || err.message?.includes('404') || err.message?.includes('Not found'))) {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*, product_images(*), product_specifications(*), categories(*)')
+          .eq('id', id)
+          .maybeSingle()
+        if (error) throw new ApiError(error.message, 400)
+        if (data) return data
+      }
+      throw err
+    }
+  },
   adminSaveProduct: (body, id) =>
     edge(id ? `/admin/products/${id}` : '/admin/products', { method: id ? 'PUT' : 'POST', body }),
   adminArchive: (id) => edge(`/admin/products/${id}/archive`, { method: 'POST', body: {} }),
   adminRestore: (id) => edge(`/admin/products/${id}/restore`, { method: 'POST', body: {} }),
-  adminDuplicate: (id) => edge(`/admin/products/${id}/duplicate`, { method: 'POST', body: {} }),
+  adminDeleteProduct: async (id) => {
+    try {
+      return await edge(`/admin/products/${id}`, { method: 'DELETE' })
+    } catch (err) {
+      // Fallback: If edge function returns 404 (prior to deploying updated shop-api function),
+      // perform deletion directly via the authenticated Supabase client.
+      if (supabase && (err.status === 404 || err.message?.includes('404') || err.message?.includes('Not found'))) {
+        try {
+          await supabase.from('order_items').update({ product_id: null }).eq('product_id', id)
+        } catch (_) {}
+        try {
+          await supabase.from('cart_items').delete().eq('product_id', id)
+          await supabase.from('inventory_movements').delete().eq('product_id', id)
+          await supabase.from('wishlist_items').delete().eq('product_id', id)
+          await supabase.from('product_specifications').delete().eq('product_id', id)
+          await supabase.from('product_images').delete().eq('product_id', id)
+        } catch (_) {}
+        const { error: delErr } = await supabase.from('products').delete().eq('id', id)
+        if (delErr) throw new ApiError(delErr.message, 400)
+        return { ok: true, deletedId: id }
+      }
+      throw err
+    }
+  },
   adminDeleteProductImage: (productId, body) =>
     edge(`/admin/products/${productId}/images`, { method: 'DELETE', body }),
   adminOrders: () => edge('/admin/orders'),
@@ -222,9 +262,20 @@ export const api = {
     edge(`/admin/inventory/${id}`, { method: 'POST', body: { delta, reason, notes } }),
 
   // Custom requests
-  submitCustomRequest: (body) => edge('/customizations/submit', { method: 'POST', body }),
-  lookupCustomRequest: (email, requestNumber) =>
-    edge('/customizations/lookup', { method: 'POST', body: { email, requestNumber } }),
+  submitCustomRequest: async (body) => {
+    const result = await edge('/customizations/submit', { method: 'POST', body })
+    return rememberAccess(result, body?.customerEmail || body?.email)
+  },
+  lookupCustomRequest: (email, requestNumber, accessToken) => {
+    const token = accessToken || findOrderAccessToken(requestNumber)
+    return edge('/customizations/lookup', {
+      method: 'POST',
+      body: { email, requestNumber, accessToken: token },
+    }).then((o) => {
+      if (token) saveOrderAccess(requestNumber, { token, email })
+      return o
+    })
+  },
   adminCustomRequests: () => edge('/admin/custom-requests'),
   adminCustomRequest: (id) => edge(`/admin/custom-requests/${id}`),
   adminUpdateCustomRequest: (id, body) =>

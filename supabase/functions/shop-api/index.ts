@@ -236,11 +236,17 @@ async function serializeCustomRequest(r: any, sbClient?: any) {
 }
 
 function productData(body: any) {
+  const catIds = Array.isArray(body.categoryIds) && body.categoryIds.length > 0
+    ? body.categoryIds
+    : body.categoryId
+    ? [body.categoryId]
+    : []
   return {
     name: body.name,
     slug: body.slug,
     sku: body.sku,
-    category_id: body.categoryId,
+    category_id: catIds[0] || body.categoryId || null,
+    category_ids_json: JSON.stringify(catIds),
     brand: body.brand || 'INVIHUB',
     short_description: body.shortDescription || '',
     description: body.description || '',
@@ -692,6 +698,11 @@ Deno.serve(async (req) => {
         return err(req, 'Invalid payment method')
       }
 
+      // Opportunistic cleanup of expired holds (older than 30 mins) to release inventory
+      try {
+        await sb.rpc('cleanup_expired_pending_orders', { p_timeout_minutes: 30 })
+      } catch { /* non-blocking */ }
+
       const loaded = await requireCart(req, sb)
       if ('error' in loaded && loaded.error) return loaded.error
       const cart = loaded.cart
@@ -925,6 +936,18 @@ Deno.serve(async (req) => {
           .eq('request_number', orderNumber.toUpperCase())
           .maybeSingle()
         if (customRow) {
+          if (customRow.access_token_hash) {
+            const hasAccess = await verifyOrderAccess(
+              { shipping_email: customRow.customer_email, ...customRow },
+              email,
+              accessToken,
+            )
+            const user = await getAuthUser(req)
+            const isOwner = user && customRow.customer_id && user.id === customRow.customer_id
+            if (!hasAccess && !isOwner) {
+              return err(req, 'Unauthorized or invalid access token', 403)
+            }
+          }
           const serialized = await serializeCustomRequest(customRow, sb)
           return json(req, { ...serialized, isCustomRequest: true })
         }
@@ -1218,11 +1241,16 @@ Deno.serve(async (req) => {
           })
           const { data: { user } } = await userSb.auth.getUser()
           if (user) {
-            const { data: cust } = await sb.from('customers').select('id').eq('user_id', user.id).maybeSingle()
+            const { data: cust } = await sb.from('customers').select('id').eq('id', user.id).maybeSingle()
             if (cust) customerId = cust.id
           }
         }
       } catch { /* optional */ }
+
+      // Generate access token for guest tracking & authorization
+      const accessToken = randomToken()
+      const access_token_hash = await sha256Hex(accessToken)
+      const access_token_expires_at = new Date(Date.now() + ORDER_ACCESS_TTL_MS).toISOString()
 
       // Generate unique request number
       const reqNum = `CR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
@@ -1243,6 +1271,8 @@ Deno.serve(async (req) => {
           dimensions_json: JSON.stringify(body.dimensions || {}),
           printing_requirements_json: JSON.stringify(body.printingRequirements || {}),
           finishing_json: JSON.stringify(body.finishing || []),
+          access_token_hash,
+          access_token_expires_at,
         })
         .select('id, request_number, status')
         .single()
@@ -1267,6 +1297,8 @@ Deno.serve(async (req) => {
         id: inserted.id,
         requestNumber: inserted.request_number,
         status: inserted.status,
+        accessToken,
+        accessTokenExpiresAt: access_token_expires_at,
       })
     }
 
@@ -1276,6 +1308,7 @@ Deno.serve(async (req) => {
       if (body === null) return err(req, 'Invalid JSON')
       const email = String(body.email || '').trim().toLowerCase()
       const reqNum = String(body.requestNumber || body.orderNumber || '').trim().toUpperCase()
+      const accessToken = String(body.accessToken || '').trim()
       if (!email.includes('@') || !reqNum) {
         return err(req, 'Email and Request Reference (e.g. CR-...) are required', 400)
       }
@@ -1295,6 +1328,19 @@ Deno.serve(async (req) => {
 
       if (!row) {
         return err(req, 'Custom request not found. Please verify the email and reference number.', 404)
+      }
+
+      if (row.access_token_hash) {
+        const hasAccess = await verifyOrderAccess(
+          { shipping_email: row.customer_email, ...row },
+          email,
+          accessToken,
+        )
+        const user = await getAuthUser(req)
+        const isOwner = user && row.customer_id && user.id === row.customer_id
+        if (!hasAccess && !isOwner) {
+          return err(req, 'Unauthorized or invalid access token', 403)
+        }
       }
 
       const serialized = await serializeCustomRequest(row, sb)
@@ -1616,6 +1662,20 @@ Deno.serve(async (req) => {
       }
 
       {
+        const m = match(method, path, 'GET', '/admin/products/:id')
+        if (m) {
+          const { data: p, error } = await asb
+            .from('products')
+            .select(PRODUCT_EMBED)
+            .eq('id', m.id)
+            .maybeSingle()
+          if (error) return err(req, error.message, 500)
+          if (!p) return err(req, 'Product not found', 404)
+          return json(req, serializeProduct(p))
+        }
+      }
+
+      {
         const m = match(method, path, 'PUT', '/admin/products/:id')
         if (m) {
           const body = await readBody(req)
@@ -1719,51 +1779,33 @@ Deno.serve(async (req) => {
       }
 
       {
-        const m = match(method, path, 'POST', '/admin/products/:id/duplicate')
+        const m = match(method, path, 'DELETE', '/admin/products/:id')
         if (m) {
-          const src = await loadProduct(asb, m.id)
-          if (!src) return err(req, 'Not found', 404)
-          const { data: copy, error } = await asb
+          // Unlink past order items so order history and customer receipts remain preserved
+          try {
+            await asb.from('order_items').update({ product_id: null }).eq('product_id', m.id)
+          } catch (_) {}
+
+          // Clean up dependent child rows
+          try {
+            await asb.from('cart_items').delete().eq('product_id', m.id)
+            await asb.from('inventory_movements').delete().eq('product_id', m.id)
+            await asb.from('wishlist_items').delete().eq('product_id', m.id)
+            await asb.from('product_specifications').delete().eq('product_id', m.id)
+            await asb.from('product_images').delete().eq('product_id', m.id)
+          } catch (_) {}
+
+          // Delete the product permanently
+          const { error: delErr } = await asb
             .from('products')
-            .insert({
-              name: `${src.name} (copy)`,
-              slug: `${src.slug}-copy-${Date.now().toString(36)}`,
-              sku: `${src.sku}-COPY`,
-              category_id: src.category_id,
-              brand: src.brand,
-              short_description: src.short_description,
-              description: src.description,
-              features_json: src.features_json,
-              tags_json: src.tags_json,
-              payment_methods_json: src.payment_methods_json,
-              price: src.price,
-              mrp: src.mrp,
-              discount: src.discount,
-              tax_rate: src.tax_rate,
-              stock: src.stock,
-              low_stock_threshold: src.low_stock_threshold,
-              status: 'INACTIVE',
-            })
-            .select('*')
-            .single()
-          if (error || !copy) return err(req, error?.message || 'Duplicate failed', 500)
-          const images = (src.product_images || []).map((i: any) => ({
-            product_id: copy.id,
-            url: i.url,
-            alt: i.alt,
-            sort_order: i.sort_order,
-            is_primary: i.is_primary,
-          }))
-          const specs = (src.product_specifications || []).map((s: any) => ({
-            product_id: copy.id,
-            name: s.name,
-            value: s.value,
-            sort_order: s.sort_order,
-          }))
-          if (images.length) await asb.from('product_images').insert(images)
-          if (specs.length) await asb.from('product_specifications').insert(specs)
-          const full = await loadProduct(asb, copy.id)
-          return json(req, serializeProduct(full))
+            .delete()
+            .eq('id', m.id)
+
+          if (delErr) {
+            return err(req, delErr.message || 'Failed to delete product', 400)
+          }
+
+          return json(req, { ok: true, deletedId: m.id })
         }
       }
 

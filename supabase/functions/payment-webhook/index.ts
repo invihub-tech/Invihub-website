@@ -63,6 +63,7 @@ Deno.serve(async (req) => {
       return err(req, 'Invalid JSON body', 400)
     }
 
+    const event = String(body?.event || '')
     const orderId =
       body?.orderId ||
       body?.payload?.payment?.entity?.notes?.orderId ||
@@ -70,6 +71,21 @@ Deno.serve(async (req) => {
     if (!orderId) return err(req, 'Missing orderId', 400)
 
     const sb = serviceClient()
+
+    // Handle failed payments
+    if (event === 'payment.failed') {
+      await sb
+        .from('payments')
+        .update({ status: 'FAILED' })
+        .eq('order_id', orderId)
+      return json(req, { ok: true, status: 'payment_failed_recorded' })
+    }
+
+    // Only fulfill on confirmed captured/paid events
+    const SUCCESS_EVENTS = new Set(['payment.captured', 'order.paid'])
+    if (!SUCCESS_EVENTS.has(event)) {
+      return json(req, { ok: true, ignored: true, event })
+    }
     const { data: order } = await sb
       .from('orders')
       .select('*, order_items(*), payments(*)')

@@ -19,7 +19,14 @@ function isPermittedOrigin(origin: string, envAllowed: string[]): boolean {
     const host = u.hostname.toLowerCase()
     if (host === 'invihub.com' || host.endsWith('.invihub.com')) return true
     if (host === 'localhost' || host === '127.0.0.1') return true
-    if (host.endsWith('.pages.dev') || host.endsWith('.workers.dev')) return true
+    if (
+      host === 'invihub.pages.dev' ||
+      host.endsWith('.invihub.pages.dev') ||
+      host === 'invihub-web.invihub.workers.dev' ||
+      host.endsWith('.invihub.workers.dev')
+    ) {
+      return true
+    }
   } catch {
     // ignore
   }
@@ -178,6 +185,13 @@ export function serializeProduct(p: any) {
       : p.category
         ? { id: p.category.id, name: p.category.name, slug: p.category.slug }
         : null,
+    categoryIds: (() => {
+      try {
+        const arr = typeof p.category_ids_json === 'string' ? JSON.parse(p.category_ids_json) : (p.category_ids_json || [])
+        if (Array.isArray(arr) && arr.length > 0) return arr
+      } catch {}
+      return p.category_id ? [p.category_id] : []
+    })(),
     images: images.map((i: any) => ({
       id: i.id,
       url: i.url,
@@ -291,6 +305,49 @@ export function nextOrderNumber() {
 }
 
 export async function sendMockEmail(event: string, payload: Record<string, unknown>) {
+  const resendApiKey = Deno.env.get('RESEND_API_KEY') || ''
+  if (resendApiKey) {
+    try {
+      const toEmail = String(payload.to || '')
+      const orderNumber = String(payload.orderNumber || payload.requestNumber || '')
+      if (toEmail) {
+        const fromEmail = Deno.env.get('EMAIL_FROM') || 'INVIHUB <orders@invihub.com>'
+        const res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: fromEmail,
+            to: [toEmail],
+            reply_to: ['invihub@gmail.com'],
+            subject:
+              event === 'order_confirmation'
+                ? `Order Confirmation - ${orderNumber}`
+                : `INVIHUB Notification - ${orderNumber}`,
+            html: `
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b;">
+                <h2 style="color: #ea580c;">INVIHUB Order Update</h2>
+                <p>Hello,</p>
+                <p>Thank you for your order. We have received confirmation for your reference: <strong>${orderNumber}</strong>.</p>
+                <p>You can track the progress of your order or custom print request anytime directly in your INVIHUB account or order tracking page.</p>
+                <p style="margin-top: 24px; font-size: 12px; color: #64748b;">INVIHUB — Interact, Innovate, Inspire</p>
+              </div>
+            `,
+          }),
+        })
+        if (res.ok) {
+          const resData = await res.json()
+          console.log('[email:resend]', event, resData.id)
+          return { ok: true, provider: 'resend', id: resData.id }
+        }
+      }
+    } catch (e: any) {
+      console.error('[email:resend:error]', e?.message)
+    }
+  }
+
   console.log('[email:mock]', event, JSON.stringify(payload))
   return { ok: true, provider: 'mock' }
 }
