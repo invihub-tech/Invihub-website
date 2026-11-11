@@ -10,15 +10,10 @@ import {
   CheckCircle2,
   Flame,
   ChevronRight,
-  Tag,
-  Layers,
 } from 'lucide-react'
 import { inr } from '../../../models/api'
 import { useShopHome } from '../../../hooks/useShopHome'
 import ProductCard from '../components/ProductCard'
-
-// Category icon map — fallback for categories that don't have an image
-const CAT_ICONS = [Box, Layers, ShieldCheck, Sparkles, Tag, Truck, Headphones]
 
 export default function ShopHome() {
   const { cats, featured, fresh, best, loading, error } = useShopHome()
@@ -220,40 +215,34 @@ export default function ShopHome() {
             </Link>
           </div>
 
-          <div className={`grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 ${cats.length <= 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-6'}`}>
-            {cats.map((cat, idx) => {
-              const Icon = CAT_ICONS[idx % CAT_ICONS.length]
-              return (
-                <Link
-                  key={cat.id || cat.slug}
-                  to={`/shop/products?category=${encodeURIComponent(cat.slug)}`}
-                  className="shop-card group p-3.5 text-center flex flex-col items-center justify-between h-44 hover:border-[#f97316]"
-                >
-                  <div className="w-20 h-20 rounded-md bg-slate-50 flex items-center justify-center overflow-hidden p-2 group-hover:scale-105 transition-transform duration-200">
-                    {cat.imageUrl ? (
-                      <img
-                        src={cat.imageUrl}
-                        alt={cat.name}
-                        className="w-full h-full object-contain mix-blend-multiply"
-                      />
-                    ) : (
-                      <Icon size={36} className="text-slate-300 group-hover:text-[#f97316] transition-colors" />
-                    )}
-                  </div>
-                  <div className="mt-2 w-full">
-                    <h3 className="font-bold text-xs text-slate-900 group-hover:text-[#f97316] transition-colors line-clamp-1">
-                      {cat.name}
-                    </h3>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">
-                      {cat.productCount > 0 ? `${cat.productCount} product${cat.productCount > 1 ? 's' : ''}` : 'View All'}
+          <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            {cats.map((cat, idx) => (
+              <Link
+                key={cat.id || cat.slug}
+                to={`/shop/products?category=${encodeURIComponent(cat.slug)}`}
+                className="shop-card group p-3.5 flex flex-col justify-between h-36 hover:border-[#f97316] hover:shadow-md transition-all text-left bg-white rounded-xl border border-slate-200"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center text-[10px] font-mono font-bold text-orange-600 bg-orange-50 border border-orange-200/60 px-2 py-0.5 rounded-md">
+                    SL. No. {String(idx + 1).padStart(2, '0')}
+                  </span>
+                  {cat.productCount > 0 && (
+                    <span className="text-[10px] text-slate-400 font-medium">
+                      {cat.productCount} {cat.productCount === 1 ? 'item' : 'items'}
                     </span>
-                    <span className="text-[11px] font-semibold text-[#f97316] mt-1.5 inline-block opacity-0 group-hover:opacity-100 transition-opacity">
-                      View Products →
-                    </span>
-                  </div>
-                </Link>
-              )
-            })}
+                  )}
+                </div>
+                <div className="my-1.5 flex-1 flex items-center">
+                  <h3 className="font-bold text-xs sm:text-sm text-slate-900 group-hover:text-[#f97316] transition-colors line-clamp-2 leading-snug">
+                    {cat.name}
+                  </h3>
+                </div>
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold text-[#f97316]">
+                  <span>Explore</span>
+                  <span className="group-hover:translate-x-1 transition-transform">→</span>
+                </div>
+              </Link>
+            ))}
           </div>
         </section>
       )}

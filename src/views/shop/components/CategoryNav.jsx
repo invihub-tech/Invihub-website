@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, NavLink } from 'react-router-dom'
-import { Menu, ChevronDown, Flame, ChevronRight, Box, Tag, Wrench } from 'lucide-react'
+import { Menu, ChevronDown, Flame, ChevronRight, Tag, Wrench } from 'lucide-react'
 
 export default function CategoryNav({ dbCategories = [] }) {
   const [megaOpen, setMegaOpen] = useState(false)
@@ -37,7 +37,7 @@ export default function CategoryNav({ dbCategories = [] }) {
 
           {megaOpen && validCats.length > 0 && (
             <div className="absolute left-0 top-full mt-1 w-64 bg-white rounded-lg shadow-2xl border border-slate-200 z-[1200] overflow-hidden py-2">
-              {validCats.map((cat) => (
+              {validCats.map((cat, idx) => (
                 <Link
                   key={cat.id || cat.slug}
                   to={`/shop/products?category=${encodeURIComponent(cat.slug)}`}
@@ -45,11 +45,9 @@ export default function CategoryNav({ dbCategories = [] }) {
                   className="flex items-center justify-between px-4 py-2.5 text-xs text-slate-700 hover:bg-orange-50 hover:text-[#f97316] font-medium transition-colors"
                 >
                   <div className="flex items-center gap-2.5">
-                    {cat.imageUrl ? (
-                      <img src={cat.imageUrl} alt="" className="w-5 h-5 rounded object-cover" />
-                    ) : (
-                      <Box size={14} className="text-slate-400" />
-                    )}
+                    <span className="font-mono text-[10px] font-bold text-orange-600 bg-orange-50 border border-orange-200/50 px-1.5 py-0.5 rounded">
+                      {String(idx + 1).padStart(2, '0')}
+                    </span>
                     <span>{cat.name}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
