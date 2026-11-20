@@ -7,11 +7,8 @@ import {
   Truck,
   Headphones,
   Box,
-  CheckCircle2,
-  Flame,
   ChevronRight,
 } from 'lucide-react'
-import { inr } from '../../../models/api'
 import { useShopHome } from '../../../hooks/useShopHome'
 import ProductCard from '../components/ProductCard'
 
@@ -64,92 +61,148 @@ export default function ShopHome() {
     <main className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-12">
 
       {/* =========================================================================
-          1. HERO / PROMOTIONAL SPLIT BANNER
+          1. HERO SECTION — INVIHUB BRAND & MARKETPLACE IDENTITY
           ========================================================================= */}
-      <section className="relative rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-950 text-white overflow-hidden shadow-xl border border-slate-800">
-        {/* Subtle decorative grid */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-20 pointer-events-none" />
+      <section className="relative rounded-3xl bg-gradient-to-b from-[#090e1a] via-[#0f172a] to-[#0a101f] text-white overflow-hidden shadow-2xl border border-slate-800/80 py-16 sm:py-20 lg:py-24 px-6 sm:px-12 lg:px-16 text-center flex flex-col items-center justify-center">
+        {/* Abstract Technical Grid Background with Radial Fade */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_75%_65%_at_50%_45%,#000_65%,transparent_100%)] opacity-35 pointer-events-none" />
 
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center p-8 sm:p-12 lg:p-16">
-          {/* Left Text Column */}
-          <div className="lg:col-span-7 space-y-6">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-[#f97316] text-xs font-bold uppercase tracking-wider">
-              <Sparkles size={14} />
-              <span>Engineering &amp; Maker Marketplace</span>
-            </div>
+        {/* Ambient Glow Lights */}
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] h-[360px] bg-gradient-to-b from-orange-500/15 via-amber-500/10 to-transparent rounded-full blur-[110px] pointer-events-none" />
+        <div className="absolute top-1/3 -left-28 w-96 h-96 bg-sky-500/10 rounded-full blur-[130px] pointer-events-none" />
+        <div className="absolute bottom-4 -right-28 w-96 h-96 bg-orange-600/10 rounded-full blur-[130px] pointer-events-none" />
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.1]">
-              Build Ideas.{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#f97316] via-orange-400 to-amber-300">
-                Shape Tomorrow.
-              </span>
-            </h1>
+        {/* Abstract Circuit & Engineering Vector Traces */}
+        <svg
+          className="absolute inset-0 w-full h-full pointer-events-none opacity-20"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+        >
+          {/* Left Circuit Lines & Nodes */}
+          <path
+            d="M 40 100 L 160 100 L 220 160 L 340 160"
+            stroke="#f97316"
+            strokeWidth="1.5"
+            strokeDasharray="4 4"
+          />
+          <circle cx="40" cy="100" r="4" fill="#f97316" className="animate-pulse" />
+          <circle cx="340" cy="160" r="3.5" fill="#f97316" />
 
-            <p className="text-base sm:text-lg text-slate-300 max-w-xl font-medium leading-relaxed">
-              Premium Electronics • Robotics Kits • Engineering Products • Educational Hardware
-            </p>
+          <path
+            d="M 60 360 L 180 360 L 240 300 L 380 300"
+            stroke="#38bdf8"
+            strokeWidth="1.5"
+          />
+          <circle cx="60" cy="360" r="3.5" fill="#38bdf8" />
+          <circle cx="380" cy="300" r="4" fill="#38bdf8" className="animate-pulse" />
 
-            <div className="flex flex-wrap items-center gap-4 pt-2">
-              <Link
-                to="/shop/products"
-                className="btn-shop-primary text-sm px-6 py-3 font-bold gap-2 shadow-lg shadow-orange-950/40"
-              >
-                <span>Shop All Products</span>
-                <ArrowRight size={16} />
-              </Link>
-              <Link
-                to="/shop/products?sort=featured"
-                className="btn-shop-outline text-sm px-5 py-3 font-semibold !bg-slate-900/60 !text-white !border-slate-700 hover:!border-orange-500 hover:!text-orange-400"
-              >
-                Featured Items
-              </Link>
-            </div>
+          {/* Right Circuit Lines & Nodes */}
+          <path
+            d="M 1200 120 L 1080 120 L 1020 180 L 900 180"
+            stroke="#f97316"
+            strokeWidth="1.5"
+          />
+          <circle cx="1200" cy="120" r="4" fill="#f97316" />
+          <circle cx="900" cy="180" r="3.5" fill="#f97316" className="animate-pulse" />
 
-            {/* Quick stats */}
-            <div className="pt-4 border-t border-slate-800/80 flex items-center gap-6 text-xs text-slate-400">
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 size={14} className="text-emerald-400" />
-                Next-Day Dispatch
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 size={14} className="text-emerald-400" />
-                GST Invoice Available
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 size={14} className="text-emerald-400" />
-                Lab Tested Quality
-              </span>
-            </div>
+          <path
+            d="M 1220 340 L 1100 340 L 1040 280 L 880 280"
+            stroke="#38bdf8"
+            strokeWidth="1.5"
+            strokeDasharray="4 4"
+          />
+          <circle cx="1220" cy="340" r="3.5" fill="#38bdf8" className="animate-pulse" />
+          <circle cx="880" cy="280" r="4" fill="#38bdf8" />
+
+          {/* Technical Crosshairs */}
+          <path d="M 48 36 L 64 36 M 56 28 L 56 44" stroke="#64748b" strokeWidth="1" />
+          <path d="M 1200 36 L 1216 36 M 1208 28 L 1208 44" stroke="#64748b" strokeWidth="1" />
+          <path d="M 48 420 L 64 420 M 56 412 L 56 428" stroke="#64748b" strokeWidth="1" />
+          <path d="M 1200 420 L 1216 420 M 1208 412 L 1208 428" stroke="#64748b" strokeWidth="1" />
+        </svg>
+
+        {/* Abstract Isometric 3D Geometric Accents */}
+        <div className="absolute right-10 top-14 hidden xl:block opacity-25 pointer-events-none">
+          <svg width="110" height="110" viewBox="0 0 110 110" fill="none" stroke="#f97316" strokeWidth="1">
+            <polygon points="55,15 95,38 55,62 15,38" fill="none" />
+            <polygon points="15,38 55,62 55,100 15,76" fill="none" />
+            <polygon points="95,38 55,62 55,100 95,76" fill="none" />
+          </svg>
+        </div>
+        <div className="absolute left-10 bottom-16 hidden xl:block opacity-20 pointer-events-none">
+          <svg width="95" height="95" viewBox="0 0 95 95" fill="none" stroke="#38bdf8" strokeWidth="1">
+            <polygon points="48,12 82,32 48,52 14,32" fill="none" />
+            <polygon points="14,32 48,52 48,85 14,65" fill="none" />
+            <polygon points="82,32 48,52 48,85 82,65" fill="none" />
+          </svg>
+        </div>
+
+        {/* Centered Hero Content */}
+        <div className="relative z-10 max-w-4xl mx-auto space-y-6 sm:space-y-8 flex flex-col items-center">
+          {/* Small Label */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-[#f97316] text-xs font-bold uppercase tracking-widest shadow-xs">
+            <Sparkles size={13} className="text-orange-400" />
+            <span>ENGINEERING &amp; MAKER MARKETPLACE</span>
           </div>
 
-          {/* Right Product Showcase */}
-          <div className="lg:col-span-5 relative flex items-center justify-center">
-            <div className="absolute w-72 h-72 bg-orange-500/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="relative w-full max-w-md bg-gradient-to-b from-slate-800/60 to-slate-900/80 p-6 rounded-2xl border border-slate-700/60 shadow-2xl backdrop-blur-sm group">
-              {featured?.[0]?.images?.[0]?.url ? (
-                <img
-                  src={featured[0].images[0].url}
-                  alt={featured[0].name}
-                  className="w-full h-64 sm:h-72 object-contain mix-blend-lighten transition-transform duration-500 group-hover:scale-105"
-                />
-              ) : (
-                <img
-                  src="/images/hero-product.png"
-                  alt="INVIHUB Products"
-                  className="w-full h-64 sm:h-72 object-contain mix-blend-lighten transition-transform duration-500 group-hover:scale-105"
-                />
-              )}
+          {/* Main Heading */}
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-white leading-[1.08] max-w-3xl">
+            Build Ideas.{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#f97316] via-orange-400 to-amber-300">
+              Shape Tomorrow.
+            </span>
+          </h1>
 
-              {featured?.[0] && (
-                <div className="absolute bottom-4 right-4 bg-orange-600 text-white p-3 rounded-xl shadow-xl border border-orange-400/30 flex items-center gap-2.5">
-                  <Flame size={20} className="fill-white" />
-                  <div className="text-left leading-tight">
-                    <div className="text-[10px] uppercase font-bold tracking-wider opacity-90">Featured</div>
-                    <div className="text-xs font-black">{featured[0].name}</div>
-                    <div className="text-[11px] font-semibold text-orange-200">{inr(featured[0].price)}</div>
-                  </div>
-                </div>
-              )}
+          {/* Supporting Text */}
+          <p className="text-base sm:text-lg lg:text-xl text-slate-300 max-w-2xl font-normal leading-relaxed">
+            Your destination for premium electronics, robotics kits, engineering products and educational hardware.
+          </p>
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+            <Link
+              to="/shop/products"
+              className="btn-shop-primary text-sm sm:text-base px-7 py-3.5 font-bold gap-2.5 shadow-xl shadow-orange-950/50 hover:shadow-orange-500/25 hover:scale-[1.02] transition-all"
+            >
+              <span>Shop All Products</span>
+              <ArrowRight size={18} />
+            </Link>
+            <a
+              href="#categories"
+              onClick={(e) => {
+                const el = document.getElementById('categories')
+                if (el) {
+                  e.preventDefault()
+                  el.scrollIntoView({ behavior: 'smooth' })
+                }
+              }}
+              className="btn-shop-outline text-sm sm:text-base px-6 py-3.5 font-semibold !bg-slate-900/80 !text-slate-200 !border-slate-700/80 hover:!border-orange-500/80 hover:!text-white hover:!bg-slate-800/80 backdrop-blur-sm transition-all"
+            >
+              <span>Explore Categories</span>
+            </a>
+          </div>
+
+          {/* Trust Indicators at the bottom */}
+          <div className="pt-8 sm:pt-10 border-t border-slate-800/80 w-full flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-xs sm:text-sm text-slate-300 font-medium">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                <ShieldCheck size={15} />
+              </div>
+              <span>Quality Assured</span>
+            </div>
+            <span className="hidden sm:inline-block text-slate-700 select-none">•</span>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center shrink-0">
+                <Truck size={15} />
+              </div>
+              <span>Fast &amp; Secure Delivery</span>
+            </div>
+            <span className="hidden sm:inline-block text-slate-700 select-none">•</span>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center shrink-0">
+                <Headphones size={15} />
+              </div>
+              <span>Engineering Support</span>
             </div>
           </div>
         </div>
@@ -201,7 +254,7 @@ export default function ShopHome() {
           3. SHOP BY CATEGORY — Dynamic from DB
           ========================================================================= */}
       {cats && cats.length > 0 && (
-        <section className="space-y-4">
+        <section id="categories" className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Shop by Category</h2>
