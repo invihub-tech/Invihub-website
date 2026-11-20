@@ -60,7 +60,7 @@ export default function ShopHome() {
   }
 
   return (
-    <main className="mx-auto max-w-7xl px-4 sm:px-6 py-6 space-y-12">
+    <main className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-12">
 
       {/* =========================================================================
           1. HERO / PROMOTIONAL SPLIT BANNER
@@ -215,7 +215,7 @@ export default function ShopHome() {
             </Link>
           </div>
 
-          <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-9">
             {cats.map((cat, idx) => (
               <Link
                 key={cat.id || cat.slug}
@@ -277,8 +277,8 @@ export default function ShopHome() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
               <div key={i} className="h-72 rounded-xl bg-slate-100 animate-pulse" />
             ))}
           </div>
@@ -287,7 +287,7 @@ export default function ShopHome() {
             <p>{error}</p>
           </div>
         ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5">
             {filteredProducts.map((p) => (
               <ProductCard key={p.id} product={p} onQuickAdd={onAddToCart} />
             ))}
@@ -326,7 +326,7 @@ export default function ShopHome() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5">
             {bestSellers.map((p) => (
               <ProductCard key={p.id} product={p} onQuickAdd={onAddToCart} />
             ))}
@@ -358,7 +358,7 @@ export default function ShopHome() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5">
             {newArrivals.map((p) => (
               <ProductCard key={p.id} product={p} onQuickAdd={onAddToCart} />
             ))}

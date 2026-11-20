@@ -77,7 +77,7 @@ export default function CheckoutPage() {
 
   if (!cart) {
     return (
-      <main className="mx-auto max-w-7xl px-4 py-20 text-center">
+      <main className="w-full px-4 sm:px-6 lg:px-8 py-20 text-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent mx-auto" />
         <p className="mt-3 text-xs text-slate-500 font-medium">Securing checkout session…</p>
       </main>
@@ -88,7 +88,7 @@ export default function CheckoutPage() {
   const totals = cart.totals || {}
 
   return (
-    <main className="mx-auto max-w-7xl px-4 sm:px-6 py-8 space-y-6">
+    <main className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* Checkout step progress */}
       <div className="flex items-center justify-between max-w-2xl mx-auto text-xs font-bold text-slate-400 py-3 px-4 bg-white rounded-xl border border-slate-200 shadow-sm">
         <span className="text-slate-400">① Customer</span>

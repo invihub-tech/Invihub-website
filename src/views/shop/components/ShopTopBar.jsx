@@ -3,7 +3,7 @@ import { Truck, ShieldCheck, Sparkles, MapPin } from 'lucide-react'
 export default function ShopTopBar() {
   return (
     <div className="bg-[#0f172a] text-[11px] font-medium text-slate-300 border-b border-slate-800">
-      <div className="mx-auto max-w-7xl px-4 py-2 flex items-center justify-between">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between">
         {/* Desktop items */}
         <div className="hidden md:flex items-center gap-6">
           <span className="flex items-center gap-1.5 text-orange-400">

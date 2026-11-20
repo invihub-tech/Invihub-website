@@ -80,7 +80,7 @@ export default function AccountPage() {
 
   if (me === null) {
     return (
-      <main className="mx-auto max-w-7xl px-4 py-20 text-center">
+      <main className="w-full px-4 sm:px-6 lg:px-8 py-20 text-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent mx-auto" />
         <p className="mt-3 text-xs text-slate-500 font-medium">Loading account details…</p>
       </main>

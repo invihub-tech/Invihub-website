@@ -50,7 +50,7 @@ export default function CartPage() {
 
   if (loading && !data) {
     return (
-      <main className="mx-auto max-w-7xl px-4 py-20 text-center">
+      <main className="w-full px-4 sm:px-6 lg:px-8 py-20 text-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent mx-auto" />
         <p className="mt-3 text-xs text-slate-500 font-medium">Loading your cart items…</p>
       </main>
@@ -64,7 +64,7 @@ export default function CartPage() {
   const shippingProgress = Math.min(100, Math.round((subtotal / FREE_SHIPPING_THRESHOLD) * 100))
 
   return (
-    <main className="mx-auto max-w-7xl px-4 sm:px-6 py-8 space-y-6">
+    <main className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-xs text-slate-500">
         <Link to="/shop" className="hover:text-slate-900 transition-colors">

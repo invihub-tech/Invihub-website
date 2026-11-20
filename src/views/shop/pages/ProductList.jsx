@@ -131,7 +131,7 @@ export default function ProductList({ categoryMode = false }) {
   if (categoryMode && catMissing) return <NotFoundPage />
 
   return (
-    <main className="mx-auto max-w-7xl px-4 sm:px-6 py-6 space-y-6">
+    <main className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Breadcrumbs */}
       <nav className="flex items-center gap-1.5 text-xs text-slate-500">
         <Link to="/shop" className="hover:text-slate-900 transition-colors">
@@ -190,7 +190,7 @@ export default function ProductList({ categoryMode = false }) {
       </div>
 
       {/* Main Grid: Sidebar Filters + Products */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
         {/* Mobile Filter Button */}
         <div className="lg:hidden flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200">
           <button
@@ -216,7 +216,7 @@ export default function ProductList({ categoryMode = false }) {
 
         {/* Left Sidebar Filters */}
         <aside
-          className={`lg:col-span-3 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-6 ${
+          className={`lg:col-span-3 xl:col-span-2 bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-6 lg:sticky lg:top-24 self-start max-h-[calc(100vh-110px)] overflow-y-auto shop-scrollbar ${
             mobileFilterOpen ? 'block' : 'hidden lg:block'
           }`}
         >
@@ -237,8 +237,15 @@ export default function ProductList({ categoryMode = false }) {
 
           {/* Categories */}
           <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">Department</div>
-            <div className="space-y-1.5 text-xs">
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Department {cats.length > 0 && `(${cats.length})`}
+              </span>
+              {cats.length > 6 && (
+                <span className="text-[10px] text-slate-400 font-medium">Scroll to view</span>
+              )}
+            </div>
+            <div className="space-y-1.5 text-xs max-h-60 sm:max-h-64 overflow-y-auto overscroll-contain pr-1.5 shop-scrollbar">
               <label className="flex items-center gap-2 py-1 text-slate-700 hover:text-[#f97316] cursor-pointer">
                 <input
                   type="checkbox"
@@ -253,7 +260,7 @@ export default function ProductList({ categoryMode = false }) {
                   key={c.slug}
                   className="flex items-center justify-between py-1 text-slate-700 hover:text-[#f97316] cursor-pointer"
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <input
                       type="checkbox"
                       checked={query.category === c.slug}
@@ -264,12 +271,12 @@ export default function ProductList({ categoryMode = false }) {
                         }
                         setFilter('category', query.category === c.slug ? '' : c.slug)
                       }}
-                      className="rounded text-[#f97316] focus:ring-[#f97316]"
+                      className="rounded text-[#f97316] focus:ring-[#f97316] shrink-0"
                     />
-                    <span className="font-medium">{c.name}</span>
+                    <span className="font-medium truncate">{c.name}</span>
                   </div>
                   {c.productCount != null && (
-                    <span className="text-[10px] text-slate-400">({c.productCount})</span>
+                    <span className="text-[10px] text-slate-400 font-mono shrink-0 ml-1.5">({c.productCount})</span>
                   )}
                 </label>
               ))}
@@ -337,7 +344,7 @@ export default function ProductList({ categoryMode = false }) {
         </aside>
 
         {/* Right Product Grid */}
-        <section className="lg:col-span-9 space-y-5">
+        <section className="lg:col-span-9 xl:col-span-10 space-y-5">
           {/* Desktop Sort Header */}
           <div className="hidden lg:flex items-center justify-between bg-white p-3 px-4 rounded-xl border border-slate-200">
             <span className="text-xs text-slate-500 font-medium">
@@ -379,7 +386,7 @@ export default function ProductList({ categoryMode = false }) {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-5">
               {displayedItems.map((p) => (
                 <ProductCard
                   key={p.id}

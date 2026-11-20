@@ -74,7 +74,7 @@ export default function ShopHeader({ onOpenCart }) {
 
   return (
     <div className="bg-white border-b border-slate-200">
-      <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-3">
         <div className="flex items-center gap-3 sm:gap-6">
           {/* Logo */}
           <Link to="/shop" className="flex items-center gap-2.5 shrink-0 group">
@@ -95,7 +95,7 @@ export default function ShopHeader({ onOpenCart }) {
           </Link>
 
           {/* Central Search Bar with Autosuggest */}
-          <div ref={searchContainerRef} className="relative flex-1 max-w-2xl mx-auto">
+          <div ref={searchContainerRef} className="relative flex-1 max-w-3xl mx-auto">
             <form
               onSubmit={(e) => {
                 e.preventDefault()

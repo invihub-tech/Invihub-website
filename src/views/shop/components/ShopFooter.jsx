@@ -6,8 +6,8 @@ export default function ShopFooter() {
   return (
     <footer className="mt-16 bg-white border-t border-slate-200">
       {/* Why Choose INVIHUB Section */}
-      <div className="bg-slate-50 border-b border-slate-200 py-12 px-4 sm:px-6">
-        <div className="mx-auto max-w-7xl">
+      <div className="bg-slate-50 border-b border-slate-200 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="w-full">
           <div className="text-center max-w-xl mx-auto mb-10">
             <span className="text-xs font-bold uppercase tracking-wider text-[#f97316]">
               Trusted by 10,000+ Makers & Engineers
@@ -73,7 +73,7 @@ export default function ShopFooter() {
       </div>
 
       {/* Main Footer Links */}
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
+      <div className="w-full px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 text-xs">
           {/* Brand info */}
           <div className="col-span-2">
