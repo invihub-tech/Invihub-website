@@ -16,12 +16,13 @@ import { useShopHome } from '../../../hooks/useShopHome'
 import ProductCard from '../components/ProductCard'
 
 export default function ShopHome() {
-  const { cats, featured, fresh, best, loading, error } = useShopHome()
+  const { cats, featured, fresh, best, allProds, loading, error } = useShopHome()
   const outletCtx = useOutletContext() || {}
   const [activeTab, setActiveTab] = useState('All')
 
-  // Build unique set of products from DB (featured + new + best)
+  // Build unique set of products from DB
   const allProducts = useMemo(() => {
+    if (allProds?.length) return allProds
     const seen = new Set()
     const unique = []
     for (const p of [...(featured || []), ...(fresh || []), ...(best || [])]) {
@@ -31,7 +32,7 @@ export default function ShopHome() {
       }
     }
     return unique
-  }, [featured, fresh, best])
+  }, [allProds, featured, fresh, best])
 
   // Dynamic tabs from real DB categories + "All"
   const tabs = useMemo(() => {
@@ -215,34 +216,94 @@ export default function ShopHome() {
             </Link>
           </div>
 
-          <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-9">
-            {cats.map((cat, idx) => (
-              <Link
-                key={cat.id || cat.slug}
-                to={`/shop/products?category=${encodeURIComponent(cat.slug)}`}
-                className="shop-card group p-3.5 flex flex-col justify-between h-36 hover:border-[#f97316] hover:shadow-md transition-all text-left bg-white rounded-xl border border-slate-200"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center text-[10px] font-mono font-bold text-orange-600 bg-orange-50 border border-orange-200/60 px-2 py-0.5 rounded-md">
-                    SL. No. {String(idx + 1).padStart(2, '0')}
-                  </span>
-                  {cat.productCount > 0 && (
-                    <span className="text-[10px] text-slate-400 font-medium">
-                      {cat.productCount} {cat.productCount === 1 ? 'item' : 'items'}
-                    </span>
-                  )}
-                </div>
-                <div className="my-1.5 flex-1 flex items-center">
-                  <h3 className="font-bold text-xs sm:text-sm text-slate-900 group-hover:text-[#f97316] transition-colors line-clamp-2 leading-snug">
-                    {cat.name}
-                  </h3>
-                </div>
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold text-[#f97316]">
-                  <span>Explore</span>
-                  <span className="group-hover:translate-x-1 transition-transform">→</span>
-                </div>
-              </Link>
-            ))}
+          <div className="grid gap-4 sm:gap-5 grid-cols-1 min-[480px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+            {cats.map((cat) => {
+              const previews = cat.previewImages || []
+              const bgImage = cat.imageUrl || previews[0]?.url || null
+
+              return (
+                <Link
+                  key={cat.id || cat.slug}
+                  to={`/shop/products?category=${encodeURIComponent(cat.slug)}`}
+                  className="shop-card group flex flex-col justify-between overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-[#f97316] hover:shadow-xl transition-all text-left"
+                >
+                  {/* Upper Section: Category Background Image & Product Count Badge */}
+                  <div className="relative h-32 sm:h-36 w-full overflow-hidden bg-slate-900 shrink-0">
+                    {bgImage ? (
+                      <img
+                        src={bgImage}
+                        alt={cat.name}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 flex items-center justify-center">
+                        <span className="text-white/20 font-black text-2xl uppercase tracking-widest select-none">
+                          {cat.name.slice(0, 3)}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Subtle dark gradient overlay for visual balance & badge contrast */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-950/20 to-black/30 pointer-events-none" />
+
+                    {/* Product count badge at top-right */}
+                    {cat.productCount > 0 && (
+                      <span className="absolute top-2.5 right-2.5 bg-slate-950/75 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-white/20 shadow-sm pointer-events-none">
+                        {cat.productCount} {cat.productCount === 1 ? 'item' : 'items'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Lower Section: Thumbnails, Category Name & Explore */}
+                  <div className="p-3.5 sm:p-4 flex flex-col justify-between flex-1 gap-3">
+                    <div>
+                      {/* Product Thumbnails: Single horizontal row of up to 6 images */}
+                      {previews.length > 0 ? (
+                        <div className="grid grid-cols-6 gap-1.5 w-full">
+                          {previews.slice(0, 6).map((img, i) => (
+                            <div
+                              key={img.url + i}
+                              className="aspect-square w-full rounded-lg border border-slate-200/90 bg-slate-50 p-1 flex items-center justify-center overflow-hidden hover:border-orange-300 transition-colors shadow-2xs"
+                              title={img.productName || cat.name}
+                            >
+                              <img
+                                src={img.url}
+                                alt={img.alt || `${cat.name} product ${i + 1}`}
+                                className="w-full h-full object-contain object-center mix-blend-multiply transition-transform duration-200 group-hover:scale-105 pointer-events-none"
+                                loading="lazy"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="py-2 px-2.5 rounded-lg bg-slate-50 border border-dashed border-slate-200 text-[10px] text-slate-400 font-medium text-center">
+                          No product previews
+                        </div>
+                      )}
+
+                      {/* Category Name below thumbnail row */}
+                      <div className="mt-2.5">
+                        <h3 className="font-bold text-sm sm:text-base text-slate-900 group-hover:text-[#f97316] transition-colors line-clamp-1 leading-snug">
+                          {cat.name}
+                        </h3>
+                        {cat.description && (
+                          <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5 font-normal">
+                            {cat.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Explore Link at the bottom */}
+                    <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-[#f97316]">
+                      <span>Explore</span>
+                      <span className="group-hover:translate-x-1 transition-transform">→</span>
+                    </div>
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         </section>
       )}

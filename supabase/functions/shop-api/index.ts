@@ -502,6 +502,28 @@ Deno.serve(async (req) => {
             .select('id', { count: 'exact', head: true })
             .eq('category_id', c.id)
             .eq('status', 'ACTIVE')
+
+          const { data: prods } = await sb
+            .from('products')
+            .select('id, name, product_images(url, alt, is_primary, sort_order)')
+            .eq('category_id', c.id)
+            .eq('status', 'ACTIVE')
+            .order('sort_order', { ascending: true })
+            .limit(6)
+
+          const previewImages: { url: string; alt?: string; productName?: string }[] = []
+          for (const p of prods || []) {
+            const sortedImgs = (p.product_images || []).slice().sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+            const primaryImg = sortedImgs.find((img: any) => img.is_primary) || sortedImgs[0]
+            if (primaryImg?.url) {
+              previewImages.push({
+                url: primaryImg.url,
+                alt: primaryImg.alt || p.name,
+                productName: p.name,
+              })
+            }
+          }
+
           return {
             id: c.id,
             name: c.name,
@@ -509,6 +531,7 @@ Deno.serve(async (req) => {
             description: c.description,
             imageUrl: c.image_url,
             productCount: count || 0,
+            previewImages,
           }
         }),
       )
