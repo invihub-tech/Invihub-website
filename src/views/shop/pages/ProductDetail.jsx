@@ -6,6 +6,7 @@ import {
   RotateCcw,
   BadgeCheck,
   Heart,
+  ChevronLeft,
   ChevronRight,
   Star,
   Check,
@@ -79,7 +80,6 @@ export default function ProductDetail() {
     name: '',
     email: '',
     rating: 5,
-    title: '',
     comment: '',
   })
   const [reviewHoverRating, setReviewHoverRating] = useState(0)
@@ -104,7 +104,6 @@ export default function ProductDetail() {
                 ...f,
                 name: myReview.customerName || f.name,
                 rating: myReview.rating || f.rating,
-                title: myReview.title || '',
                 comment: myReview.comment || '',
               }))
             }
@@ -118,6 +117,7 @@ export default function ProductDetail() {
   const load = () => {
     setData(null)
     setPageStatus(null)
+    setActiveImg(0)
     api
       .product(slug)
       .then((d) => {
@@ -165,7 +165,6 @@ export default function ProductDetail() {
         customerName: reviewForm.name.trim(),
         customerEmail: reviewForm.email.trim(),
         rating: reviewForm.rating,
-        title: reviewForm.title.trim(),
         comment: reviewForm.comment.trim(),
       })
       setReviewFeedback({
@@ -187,7 +186,7 @@ export default function ProductDetail() {
   if (pageStatus != null) return <ApiStatusScreen status={pageStatus} onRetry={load} />
   if (!data) {
     return (
-      <main className="mx-auto max-w-7xl px-4 py-20 text-center">
+      <main className="w-full px-4 sm:px-6 lg:px-8 py-20 text-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#f97316] border-t-transparent mx-auto" />
         <p className="mt-3 text-xs text-slate-500 font-medium">Loading engineering specifications…</p>
       </main>
@@ -253,7 +252,7 @@ export default function ProductDetail() {
   ]
 
   return (
-    <main className="mx-auto max-w-7xl px-4 sm:px-6 py-6 space-y-8">
+    <main className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-8">
       {/* Breadcrumbs */}
       <nav className="flex items-center gap-1.5 text-xs text-slate-500">
         <Link to="/shop" className="hover:text-slate-900 transition-colors">
@@ -274,21 +273,21 @@ export default function ProductDetail() {
       {/* Main Product Container */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-12 gap-10">
         {/* Left Gallery */}
-        <div className="lg:col-span-6 space-y-4">
+        <div className="lg:col-span-6 space-y-4 lg:sticky lg:top-24 self-start">
           {/* Main Hero Image */}
-          <div className="relative aspect-square w-full rounded-xl bg-slate-50 border border-slate-200 overflow-hidden p-6 flex items-center justify-center">
-            {imgs[activeImg] ? (
+          <div className="relative aspect-square w-full max-h-[480px] sm:max-h-[520px] mx-auto rounded-2xl bg-slate-50 border border-slate-200 overflow-hidden p-6 sm:p-8 flex items-center justify-center select-none group">
+            {imgs[activeImg] || imgs[0] ? (
               <img
-                src={imgs[activeImg].url}
-                alt={p.name}
-                className="w-full h-full object-contain mix-blend-multiply transition-transform duration-300 hover:scale-105"
+                src={(imgs[activeImg] || imgs[0]).url}
+                alt={(imgs[activeImg] || imgs[0]).alt || p.name}
+                className="w-full h-full max-h-[440px] sm:max-h-[480px] object-contain object-center mix-blend-multiply transition-transform duration-300 pointer-events-none"
               />
             ) : (
-              <div className="text-xs text-slate-300">No Image Available</div>
+              <div className="text-xs font-medium text-slate-400">No Image Available</div>
             )}
 
             {/* Badges */}
-            <div className="absolute top-4 left-4 flex flex-col gap-1.5">
+            <div className="absolute top-4 left-4 flex flex-col gap-1.5 z-10 pointer-events-none">
               {discountPercent > 0 && (
                 <span className="bg-red-600 text-white text-[11px] font-black px-2.5 py-1 rounded shadow-sm">
                   {discountPercent}% OFF
@@ -305,28 +304,71 @@ export default function ProductDetail() {
             <button
               type="button"
               onClick={() => toggleWishlist(p.id)}
-              className="absolute top-4 right-4 p-2.5 rounded-full bg-white/90 backdrop-blur-sm text-slate-400 hover:text-red-500 shadow-sm transition-colors"
+              className="absolute top-4 right-4 p-2.5 rounded-full bg-white/90 backdrop-blur-sm text-slate-400 hover:text-red-500 shadow-sm transition-colors z-10"
               aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
             >
               <Heart size={20} className={wishlisted ? 'fill-red-500 text-red-500' : ''} />
             </button>
+
+            {/* Prev / Next Navigation Arrows */}
+            {imgs.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setActiveImg((prev) => (prev - 1 + imgs.length) % imgs.length)
+                  }}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/95 hover:bg-white text-slate-700 hover:text-slate-950 shadow-md border border-slate-200/80 flex items-center justify-center transition-all opacity-90 hover:opacity-100 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#f97316] z-10"
+                  aria-label="Previous product image"
+                >
+                  <ChevronLeft size={18} className="sm:w-5 sm:h-5 -translate-x-0.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setActiveImg((prev) => (prev + 1) % imgs.length)
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/95 hover:bg-white text-slate-700 hover:text-slate-950 shadow-md border border-slate-200/80 flex items-center justify-center transition-all opacity-90 hover:opacity-100 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#f97316] z-10"
+                  aria-label="Next product image"
+                >
+                  <ChevronRight size={18} className="sm:w-5 sm:h-5 translate-x-0.5" />
+                </button>
+
+                {/* Image counter indicator */}
+                <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-md bg-slate-900/70 backdrop-blur-sm text-white text-[11px] font-semibold tracking-wide select-none pointer-events-none z-10">
+                  {((activeImg >= imgs.length ? 0 : activeImg) + 1)} / {imgs.length}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Thumbnail list */}
           {imgs.length > 1 && (
-            <div className="flex items-center gap-3 overflow-x-auto pb-2 hide-scrollbar">
-              {imgs.map((im, i) => (
-                <button
-                  key={im.url + i}
-                  type="button"
-                  onClick={() => setActiveImg(i)}
-                  className={`w-18 h-18 rounded-lg border-2 p-1.5 bg-slate-50 transition-all shrink-0 ${
-                    i === activeImg ? 'border-[#f97316] ring-2 ring-orange-200' : 'border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  <img src={im.url} alt="" className="w-full h-full object-contain mix-blend-multiply" />
-                </button>
-              ))}
+            <div className="relative">
+              <div className="flex items-center gap-2.5 overflow-x-auto py-1 px-0.5 hide-scrollbar scroll-smooth">
+                {imgs.map((im, i) => (
+                  <button
+                    key={im.id || im.url + i}
+                    type="button"
+                    onClick={() => setActiveImg(i)}
+                    className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 p-1.5 bg-slate-50 transition-all shrink-0 flex items-center justify-center overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#f97316] ${
+                      i === activeImg
+                        ? 'border-[#f97316] ring-2 ring-orange-200 shadow-sm opacity-100'
+                        : 'border-slate-200 hover:border-slate-300 opacity-70 hover:opacity-100'
+                    }`}
+                    aria-label={`View product image ${i + 1}`}
+                  >
+                    <img
+                      src={im.url}
+                      alt={im.alt || `${p.name} - thumbnail ${i + 1}`}
+                      className="w-full h-full object-contain object-center mix-blend-multiply pointer-events-none"
+                      loading="lazy"
+                    />
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -946,20 +988,6 @@ export default function ProductDetail() {
                       Kept private; not published publicly.
                     </span>
                   </div>
-                </div>
-
-                {/* Headline / Title */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Review Headline <span className="text-slate-400 font-normal">(Optional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Excellent print quality and perfect winding"
-                    value={reviewForm.title}
-                    onChange={(e) => setReviewForm((f) => ({ ...f, title: e.target.value }))}
-                    className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-[#f97316] focus:border-transparent outline-none"
-                  />
                 </div>
 
                 {/* Written Review */}
