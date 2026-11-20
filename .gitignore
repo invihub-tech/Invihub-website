@@ -9,3 +9,5 @@ public/uploads/*
 !public/uploads/.gitkeep
 supabase/.temp/
 .wrangler/
+.agents/
+skills-lock.json

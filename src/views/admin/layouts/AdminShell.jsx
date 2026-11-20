@@ -7,6 +7,7 @@ import {
   ShoppingBag,
   Warehouse,
   ClipboardList,
+  Star,
   LogOut,
 } from 'lucide-react'
 import { api } from '../../../models/api'
@@ -56,6 +57,7 @@ export default function AdminShell() {
           {item(`${adminBase}/categories`, 'Categories', FolderTree)}
           {item(`${adminBase}/orders`, 'Orders', ShoppingBag)}
           {item(`${adminBase}/inventory`, 'Inventory', Warehouse)}
+          {item(`${adminBase}/reviews`, 'Product Reviews', Star)}
           {item(`${adminBase}/custom-requests`, 'Custom Requests', ClipboardList)}
         </nav>
         <button

@@ -180,6 +180,8 @@ export function serializeProduct(p: any) {
     isBestSeller: p.is_best_seller,
     allowCustomization: Boolean(p.allow_customization),
     paymentMethods: parsePaymentMethods(p.payment_methods_json),
+    ratingAverage: Number(p.rating_average || 0),
+    ratingCount: Number(p.rating_count || 0),
     category: p.categories
       ? { id: p.categories.id, name: p.categories.name, slug: p.categories.slug }
       : p.category

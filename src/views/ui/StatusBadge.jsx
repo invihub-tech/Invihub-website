@@ -4,6 +4,8 @@ const styles = {
   PROCESSING: 'bg-amber-400/15 text-amber-300',
   SHIPPED: 'bg-sky-400/15 text-sky-300',
   PENDING: 'bg-orange-400/15 text-orange-300',
+  APPROVED: 'bg-emerald-500/15 text-emerald-400',
+  REJECTED: 'bg-red-500/15 text-red-400',
   ACTIVE: 'bg-emerald-500/15 text-emerald-400',
   DELIVERED: 'bg-emerald-500/15 text-emerald-400',
   CANCELLED: 'bg-red-500/15 text-red-400',

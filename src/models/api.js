@@ -86,6 +86,9 @@ export const api = {
   categories: () => edge('/categories'),
   products: (params = {}) => edge(`/products?${new URLSearchParams(params)}`),
   product: (slug) => edge(`/products/${encodeURIComponent(slug)}`),
+  productReviews: (slug) => edge(`/products/${encodeURIComponent(slug)}/reviews`),
+  submitProductReview: (slug, body) =>
+    edge(`/products/${encodeURIComponent(slug)}/reviews`, { method: 'POST', body }),
   search: (q) => edge(`/search?q=${encodeURIComponent(q)}`),
   settings: () => edge('/settings'),
 
@@ -282,6 +285,12 @@ export const api = {
     edge(`/admin/custom-requests/${id}`, { method: 'PATCH', body }),
   adminCleanupExpiredInventory: (timeoutMinutes = 60) =>
     edge('/admin/inventory/cleanup-expired', { method: 'POST', body: { timeoutMinutes } }),
+
+  // Admin Product Reviews
+  adminReviews: (params = {}) => edge(`/admin/reviews?${new URLSearchParams(params)}`),
+  adminApproveReview: (id) => edge(`/admin/reviews/${id}/approve`, { method: 'POST', body: {} }),
+  adminRejectReview: (id) => edge(`/admin/reviews/${id}/reject`, { method: 'POST', body: {} }),
+  adminDeleteReview: (id) => edge(`/admin/reviews/${id}`, { method: 'DELETE' }),
 
   upload: async (file) => {
     const buf = await file.arrayBuffer()

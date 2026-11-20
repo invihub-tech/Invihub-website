@@ -575,6 +575,178 @@ Deno.serve(async (req) => {
       }
     }
 
+    {
+      const m = match(method, path, 'GET', '/products/:slug/reviews')
+      if (m) {
+        const { data: p } = await sb
+          .from('products')
+          .select('id, name, slug')
+          .or(`slug.eq.${m.slug},id.eq.${m.slug}`)
+          .maybeSingle()
+        if (!p) return err(req, 'Product not found', 404)
+
+        const { data: reviews } = await sb
+          .from('product_reviews')
+          .select('id, product_id, customer_name, rating, title, comment, verified_purchase, created_at, updated_at')
+          .eq('product_id', p.id)
+          .eq('status', 'APPROVED')
+          .order('created_at', { ascending: false })
+
+        const list = reviews || []
+        const totalCount = list.length
+        const distribution: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+        let sum = 0
+        for (const r of list) {
+          const stars = Math.min(5, Math.max(1, Number(r.rating) || 1))
+          distribution[stars] = (distribution[stars] || 0) + 1
+          sum += stars
+        }
+        const average = totalCount > 0 ? Math.round((sum / totalCount) * 10) / 10 : 0
+        const percentages: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+        if (totalCount > 0) {
+          for (let s = 1; s <= 5; s++) {
+            percentages[s] = Math.round(((distribution[s] || 0) / totalCount) * 100)
+          }
+        }
+
+        return json(req, {
+          ok: true,
+          productId: p.id,
+          summary: {
+            average,
+            totalCount,
+            distribution,
+            percentages,
+          },
+          reviews: list.map((r: any) => ({
+            id: r.id,
+            productId: r.product_id,
+            customerName: r.customer_name,
+            rating: r.rating,
+            title: r.title || '',
+            comment: r.comment,
+            verifiedPurchase: Boolean(r.verified_purchase),
+            createdAt: r.created_at,
+            updatedAt: r.updated_at,
+          })),
+        })
+      }
+    }
+
+    {
+      const m = match(method, path, 'POST', '/products/:slug/reviews')
+      if (m) {
+        const body = await readBody(req)
+        if (!body) return err(req, 'Invalid request body', 400)
+
+        const customerName = String(body.customerName || body.name || '').trim()
+        const customerEmail = String(body.customerEmail || body.email || '').trim().toLowerCase()
+        const rating = Math.round(Number(body.rating))
+        const title = String(body.title || '').trim()
+        const comment = String(body.comment || body.review || '').trim()
+
+        if (!customerName || customerName.length < 2) {
+          return err(req, 'Please provide your name (at least 2 characters)', 400)
+        }
+        if (!customerEmail || !customerEmail.includes('@') || !customerEmail.includes('.')) {
+          return err(req, 'Please provide a valid email address', 400)
+        }
+        if (!rating || rating < 1 || rating > 5) {
+          return err(req, 'Rating must be between 1 and 5 stars', 400)
+        }
+        if (!comment || comment.length < 3) {
+          return err(req, 'Review comment must be at least 3 characters', 400)
+        }
+
+        const { data: p } = await sb
+          .from('products')
+          .select('id, name, slug')
+          .or(`slug.eq.${m.slug},id.eq.${m.slug}`)
+          .maybeSingle()
+        if (!p) return err(req, 'Product not found', 404)
+
+        // Check verified purchase
+        let verifiedPurchase = false
+        const { data: orders } = await sb
+          .from('orders')
+          .select('id, payment_status, order_items(product_id)')
+          .ilike('shipping_email', customerEmail)
+          .eq('payment_status', 'PAID')
+        if (orders && orders.length > 0) {
+          verifiedPurchase = orders.some((o: any) =>
+            (o.order_items || []).some((item: any) => item.product_id === p.id)
+          )
+        }
+
+        // Check customer_id if exists
+        const { data: cust } = await sb
+          .from('customers')
+          .select('id')
+          .ilike('email', customerEmail)
+          .maybeSingle()
+
+        // Check existing review
+        const { data: existing } = await sb
+          .from('product_reviews')
+          .select('id, status, rating, comment')
+          .eq('product_id', p.id)
+          .ilike('customer_email', customerEmail)
+          .maybeSingle()
+
+        if (existing) {
+          const { data: updated, error: updateErr } = await sb
+            .from('product_reviews')
+            .update({
+              customer_name: customerName,
+              customer_id: cust?.id || null,
+              rating,
+              title,
+              comment,
+              verified_purchase: verifiedPurchase,
+              status: 'APPROVED',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existing.id)
+            .select('*')
+            .single()
+
+          if (updateErr) return err(req, updateErr.message, 500)
+
+          return json(req, {
+            ok: true,
+            isUpdate: true,
+            message: 'Your review has been updated successfully!',
+            review: updated,
+          })
+        }
+
+        const { data: created, error: insertErr } = await sb
+          .from('product_reviews')
+          .insert({
+            product_id: p.id,
+            customer_name: customerName,
+            customer_email: customerEmail,
+            customer_id: cust?.id || null,
+            rating,
+            title,
+            comment,
+            status: 'APPROVED',
+            verified_purchase: verifiedPurchase,
+          })
+          .select('*')
+          .single()
+
+        if (insertErr) return err(req, insertErr.message, 500)
+
+        return json(req, {
+          ok: true,
+          isUpdate: false,
+          message: 'Thank you! Your review has been submitted successfully.',
+          review: created,
+        })
+      }
+    }
+
     if (match(method, path, 'GET', '/search')) {
       const term = String(q.q || '').replace(/[%(),]/g, ' ').trim()
       if (!term) return json(req, [])
@@ -2035,6 +2207,111 @@ Deno.serve(async (req) => {
             .single()
           if (ue) return err(req, ue.message, 500)
           return json(req, await serializeCustomRequest(updated, asb))
+        }
+      }
+
+      // ---------- ADMIN: PRODUCT REVIEWS ----------
+      if (match(method, path, 'GET', '/admin/reviews')) {
+        let query = asb
+          .from('product_reviews')
+          .select('*, products(id, name, slug, sku)')
+          .order('created_at', { ascending: false })
+
+        if (q.status && q.status !== 'ALL') {
+          query = query.eq('status', q.status)
+        }
+        if (q.productId && q.productId !== 'ALL') {
+          query = query.eq('product_id', q.productId)
+        }
+        if (q.rating && q.rating !== 'ALL') {
+          query = query.eq('rating', Number(q.rating))
+        }
+
+        const { data: rows, error: revErr } = await query
+        if (revErr) return err(req, revErr.message, 500)
+
+        const list = (rows || []).map((r: any) => ({
+          id: r.id,
+          productId: r.product_id,
+          product: r.products
+            ? { id: r.products.id, name: r.products.name, slug: r.products.slug, sku: r.products.sku }
+            : null,
+          customerId: r.customer_id,
+          customerName: r.customer_name,
+          customerEmail: r.customer_email,
+          rating: r.rating,
+          title: r.title || '',
+          comment: r.comment,
+          status: r.status,
+          verifiedPurchase: Boolean(r.verified_purchase),
+          createdAt: r.created_at,
+          updatedAt: r.updated_at,
+        }))
+
+        // Overall stats
+        const { data: allReviews } = await asb.from('product_reviews').select('rating, status')
+        const allList = allReviews || []
+        const total = allList.length
+        const pending = allList.filter((r: any) => r.status === 'PENDING').length
+        const approved = allList.filter((r: any) => r.status === 'APPROVED').length
+        const rejected = allList.filter((r: any) => r.status === 'REJECTED').length
+        const approvedRatings = allList.filter((r: any) => r.status === 'APPROVED').map((r: any) => Number(r.rating) || 0)
+        const avg = approvedRatings.length > 0
+          ? Math.round((approvedRatings.reduce((a: number, b: number) => a + b, 0) / approvedRatings.length) * 10) / 10
+          : 0
+
+        return json(req, {
+          reviews: list,
+          stats: {
+            total,
+            pending,
+            approved,
+            rejected,
+            averageRating: avg,
+          },
+        })
+      }
+
+      {
+        const m = match(method, path, 'POST', '/admin/reviews/:id/approve')
+        if (m) {
+          const { data: updated, error } = await asb
+            .from('product_reviews')
+            .update({ status: 'APPROVED', updated_at: new Date().toISOString() })
+            .eq('id', m.id)
+            .select('*, products(id, name, slug, sku)')
+            .single()
+
+          if (error) return err(req, error.message, 500)
+          return json(req, { ok: true, review: updated })
+        }
+      }
+
+      {
+        const m = match(method, path, 'POST', '/admin/reviews/:id/reject')
+        if (m) {
+          const { data: updated, error } = await asb
+            .from('product_reviews')
+            .update({ status: 'REJECTED', updated_at: new Date().toISOString() })
+            .eq('id', m.id)
+            .select('*, products(id, name, slug, sku)')
+            .single()
+
+          if (error) return err(req, error.message, 500)
+          return json(req, { ok: true, review: updated })
+        }
+      }
+
+      {
+        const m = match(method, path, 'DELETE', '/admin/reviews/:id')
+        if (m) {
+          const { error } = await asb
+            .from('product_reviews')
+            .delete()
+            .eq('id', m.id)
+
+          if (error) return err(req, error.message, 500)
+          return json(req, { ok: true, deleted: true, id: m.id })
         }
       }
 

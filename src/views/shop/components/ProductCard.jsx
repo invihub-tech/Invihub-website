@@ -178,14 +178,30 @@ export default function ProductCard({ product, onQuickAdd }) {
         )}
 
         {/* Rating Stars */}
-        <div className="mt-2 flex items-center gap-1.5">
-          <div className="flex items-center text-amber-400">
-            {[...Array(5)].map((_, i) => (
-              <Star key={i} size={13} className="fill-amber-400 text-amber-400" />
-            ))}
-          </div>
-          <span className="text-xs font-bold text-slate-700">4.8</span>
-          <span className="text-[11px] text-slate-400">({product.sold > 0 ? product.sold * 12 + 18 : 34})</span>
+        <div className="mt-2 flex items-center gap-1.5 min-h-[18px]">
+          {product.ratingCount > 0 ? (
+            <>
+              <div className="flex items-center text-amber-400">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    size={13}
+                    className={
+                      star <= Math.round(product.ratingAverage || 0)
+                        ? 'fill-amber-400 text-amber-400'
+                        : 'text-slate-200 fill-slate-100'
+                    }
+                  />
+                ))}
+              </div>
+              <span className="text-xs font-bold text-slate-700">
+                {Number(product.ratingAverage || 0).toFixed(1)}
+              </span>
+              <span className="text-[11px] text-slate-400">({product.ratingCount})</span>
+            </>
+          ) : (
+            <span className="text-[11px] text-slate-400 font-medium">No reviews yet</span>
+          )}
         </div>
 
         {/* Pricing */}
