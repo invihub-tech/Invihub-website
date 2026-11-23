@@ -139,15 +139,19 @@ export default function SideCartDrawer({ isOpen, onClose }) {
           ) : (
             items.map((item) => {
               const product = item.product || {}
+              const name = item.name || product.name || 'Product'
+              const unitPrice = Number(item.unitPrice ?? product.price ?? 0)
+              const qty = Number(item.quantity || 1)
+              const lineTotal = Number(item.lineTotal ?? (unitPrice * qty))
               const imgUrl = product.images?.[0]?.url || item.imageUrl
               const isUpdating = updatingId === item.id
 
               return (
                 <div key={item.id} className="pt-4 first:pt-0 flex gap-4">
                   {/* Thumbnail */}
-                  <div className="w-16 h-16 rounded-md border border-slate-200 bg-slate-50 overflow-hidden shrink-0 flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-lg border border-slate-200 bg-slate-50 overflow-hidden shrink-0 flex items-center justify-center p-1">
                     {imgUrl ? (
-                      <img src={imgUrl} alt={item.name} className="w-full h-full object-cover" />
+                      <img src={imgUrl} alt={name} className="w-full h-full object-contain mix-blend-multiply" />
                     ) : (
                       <span className="text-[10px] text-slate-400">No img</span>
                     )}
@@ -158,45 +162,52 @@ export default function SideCartDrawer({ isOpen, onClose }) {
                     <Link
                       to={`/shop/product/${product.slug || item.productId}`}
                       onClick={onClose}
-                      className="text-xs font-semibold text-slate-900 hover:text-[#f97316] line-clamp-1 transition-colors"
+                      className="text-xs font-bold text-slate-900 hover:text-[#f97316] line-clamp-1 transition-colors block"
+                      title={name}
                     >
-                      {item.name}
+                      {name}
                     </Link>
-                    <div className="text-[11px] text-slate-500 mt-0.5">
+                    <div className="text-[11px] text-slate-400 mt-0.5 font-medium">
                       {product.brand || 'INVIHUB'}
                     </div>
 
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center border border-slate-200 rounded">
-                        <button
-                          type="button"
-                          disabled={isUpdating}
-                          onClick={() => handleUpdate(item.id, item.quantity - 1)}
-                          className="px-2 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs disabled:opacity-40"
-                          aria-label="Decrease quantity"
-                        >
-                          <Minus size={12} />
-                        </button>
-                        <span className="px-2 py-1 text-xs font-bold text-slate-800 min-w-6 text-center">
-                          {item.quantity}
-                        </span>
-                        <button
-                          type="button"
-                          disabled={isUpdating}
-                          onClick={() => handleUpdate(item.id, item.quantity + 1)}
-                          className="px-2 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 text-xs disabled:opacity-40"
-                          aria-label="Increase quantity"
-                        >
-                          <Plus size={12} />
-                        </button>
+                    {/* Quantity & Price Controls */}
+                    <div className="flex items-center justify-between mt-2.5">
+                      {/* Quantity stepper & Unit price */}
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center border border-slate-200 rounded-lg bg-slate-50 overflow-hidden shadow-inner">
+                          <button
+                            type="button"
+                            disabled={isUpdating}
+                            onClick={() => handleUpdate(item.id, qty - 1)}
+                            className="px-2 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 text-xs disabled:opacity-40 transition-colors"
+                            aria-label="Decrease quantity"
+                          >
+                            <Minus size={12} />
+                          </button>
+                          <span className="px-2.5 py-1 text-xs font-bold text-slate-900 min-w-6 text-center bg-white">
+                            {qty}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={isUpdating}
+                            onClick={() => handleUpdate(item.id, qty + 1)}
+                            className="px-2 py-1 text-slate-600 hover:text-slate-900 hover:bg-slate-200/70 text-xs disabled:opacity-40 transition-colors"
+                            aria-label="Increase quantity"
+                          >
+                            <Plus size={12} />
+                          </button>
+                        </div>
+                        <span className="text-[11px] text-slate-500 font-medium">× {inr(unitPrice)}</span>
                       </div>
 
-                      <div className="text-right">
-                        <span className="text-xs font-bold text-slate-900">{inr(item.lineTotal || item.unitPrice * item.quantity)}</span>
+                      {/* Line Total & Remove button */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-900">{inr(lineTotal)}</span>
                         <button
                           type="button"
                           onClick={() => handleUpdate(item.id, 0)}
-                          className="block ml-auto text-[11px] text-slate-400 hover:text-red-500 transition-colors mt-0.5"
+                          className="p-1 text-slate-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors"
                           title="Remove item"
                         >
                           <Trash2 size={13} />
@@ -210,27 +221,36 @@ export default function SideCartDrawer({ isOpen, onClose }) {
           )}
         </div>
 
-        {/* Footer with Subtotal & Actions */}
+        {/* Footer with Subtotal, Total Amount & Actions */}
         {items.length > 0 && (
           <div className="p-6 border-t border-slate-200 bg-slate-50 space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600 font-medium">Subtotal</span>
-              <span className="text-base font-bold text-slate-900">{inr(subtotal)}</span>
+            <div className="flex items-center justify-between text-xs text-slate-600 pb-2 border-b border-slate-200">
+              <span className="font-medium">Subtotal ({items.reduce((s, i) => s + (Number(i.quantity) || 1), 0)} items)</span>
+              <span className="font-semibold text-slate-800">{inr(subtotal)}</span>
             </div>
-            <p className="text-[11px] text-slate-500">Taxes calculated during checkout. Free delivery above ₹999.</p>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
+            <div className="flex items-center justify-between pt-0.5">
+              <div>
+                <span className="text-sm font-extrabold text-slate-900 block">Total Amount</span>
+                <span className="text-[10px] text-slate-400">All taxes included</span>
+              </div>
+              <span className="text-xl font-black text-[#f97316]">{inr(subtotal)}</span>
+            </div>
+
+            <p className="text-[11px] text-slate-500">Free delivery on orders above ₹999.</p>
+
+            <div className="grid grid-cols-2 gap-3 pt-1">
               <Link
                 to="/shop/cart"
                 onClick={onClose}
-                className="btn-shop-outline text-center text-xs justify-center py-2.5"
+                className="btn-shop-outline text-center text-xs justify-center py-2.5 font-bold"
               >
                 View Full Cart
               </Link>
               <Link
                 to="/shop/checkout"
                 onClick={onClose}
-                className="btn-shop-primary text-center text-xs justify-center py-2.5 gap-1.5"
+                className="btn-shop-primary text-center text-xs justify-center py-2.5 font-bold flex items-center gap-1.5"
               >
                 <span>Checkout</span>
                 <ArrowRight size={14} />

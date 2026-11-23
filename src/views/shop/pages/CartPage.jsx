@@ -140,6 +140,10 @@ export default function CartPage() {
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100 overflow-hidden">
               {items.map((item) => {
                 const product = item.product || {}
+                const name = item.name || product.name || 'Product'
+                const unitPrice = Number(item.unitPrice ?? product.price ?? 0)
+                const qty = Number(item.quantity || 1)
+                const lineTotal = Number(item.lineTotal ?? (unitPrice * qty))
                 const imgUrl = product.images?.[0]?.url || item.imageUrl
                 const isUpdating = updatingId === item.id
 
@@ -150,7 +154,7 @@ export default function CartPage() {
                       {imgUrl ? (
                         <img
                           src={imgUrl}
-                          alt={item.name}
+                          alt={name}
                           className="w-full h-full object-contain mix-blend-multiply"
                         />
                       ) : (
@@ -167,10 +171,10 @@ export default function CartPage() {
                         to={`/shop/product/${product.slug || item.productId}`}
                         className="font-bold text-sm text-slate-900 hover:text-[#f97316] line-clamp-1 transition-colors"
                       >
-                        {item.name}
+                        {name}
                       </Link>
                       <div className="text-xs text-slate-500 mt-0.5">
-                        Unit Price: <span className="font-semibold text-slate-800">{inr(item.unitPrice)}</span>
+                        Unit Price: <span className="font-semibold text-slate-800">{inr(unitPrice)}</span>
                       </div>
                     </div>
 
@@ -180,19 +184,19 @@ export default function CartPage() {
                         <button
                           type="button"
                           disabled={isUpdating}
-                          onClick={() => handleUpdate(item.id, item.quantity - 1)}
+                          onClick={() => handleUpdate(item.id, qty - 1)}
                           className="px-3 py-1.5 text-slate-600 hover:bg-slate-200 text-xs disabled:opacity-40 transition-colors"
                           aria-label="Decrease quantity"
                         >
                           <Minus size={13} />
                         </button>
                         <span className="px-3 py-1.5 text-xs font-bold text-slate-900 min-w-8 text-center bg-white">
-                          {item.quantity}
+                          {qty}
                         </span>
                         <button
                           type="button"
                           disabled={isUpdating}
-                          onClick={() => handleUpdate(item.id, item.quantity + 1)}
+                          onClick={() => handleUpdate(item.id, qty + 1)}
                           className="px-3 py-1.5 text-slate-600 hover:bg-slate-200 text-xs disabled:opacity-40 transition-colors"
                           aria-label="Increase quantity"
                         >
@@ -213,7 +217,7 @@ export default function CartPage() {
                     {/* Line Total */}
                     <div className="text-right sm:min-w-24">
                       <span className="text-sm font-black text-slate-900 block">
-                        {inr(item.lineTotal || item.unitPrice * item.quantity)}
+                        {inr(lineTotal)}
                       </span>
                     </div>
                   </div>

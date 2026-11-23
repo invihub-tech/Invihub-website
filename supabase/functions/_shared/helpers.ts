@@ -208,6 +208,22 @@ export function serializeProduct(p: any) {
         return []
       }
     })(),
+    trustBadges: (() => {
+      try {
+        if (p.trust_badges_json) {
+          const arr = typeof p.trust_badges_json === 'string' ? JSON.parse(p.trust_badges_json) : p.trust_badges_json
+          if (Array.isArray(arr)) return arr
+        }
+      } catch {}
+      try {
+        const tags = typeof p.tags_json === 'string' ? JSON.parse(p.tags_json) : (p.tags_json || [])
+        const badgeTags = (tags || [])
+          .filter((t: string) => typeof t === 'string' && t.startsWith('badge:'))
+          .map((t: string) => t.slice(6))
+        if (badgeTags.length > 0) return badgeTags
+      } catch {}
+      return []
+    })(),
     inStock: p.stock > 0,
   }
 }
@@ -215,11 +231,23 @@ export function serializeProduct(p: any) {
 export function serializeCart(cart: any) {
   return {
     id: cart.id,
-    items: (cart.cart_items || []).map((item: any) => ({
-      id: item.id,
-      quantity: item.quantity,
-      product: serializeProduct(item.products || item.product),
-    })),
+    items: (cart.cart_items || []).map((item: any) => {
+      const prodRaw = item.products || item.product || {}
+      const product = serializeProduct(prodRaw)
+      const unitPrice = Number(product.price ?? prodRaw.price ?? 0)
+      const quantity = Number(item.quantity || 1)
+      const lineTotal = unitPrice * quantity
+      return {
+        id: item.id,
+        productId: product.id || prodRaw.id || item.product_id,
+        name: product.name || prodRaw.name || 'Product',
+        unitPrice,
+        lineTotal,
+        imageUrl: product.images?.[0]?.url || '',
+        quantity,
+        product,
+      }
+    }),
   }
 }
 
