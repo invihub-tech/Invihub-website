@@ -269,6 +269,7 @@ function productData(body: any) {
     is_best_seller: Boolean(body.isBestSeller),
     allow_customization: Boolean(body.allowCustomization),
     parts_json: JSON.stringify(body.parts || []),
+    trust_badges_json: JSON.stringify(body.trustBadges || []),
     payment_methods_json: JSON.stringify(body.paymentMethods),
   }
 }
@@ -1831,11 +1832,21 @@ Deno.serve(async (req) => {
         const paymentMethods = parsedPaymentMethods(body)
         if (!paymentMethods.length) return err(req, 'Select at least one payment method')
         const data = productData({ ...body, paymentMethods })
-        const { data: product, error } = await asb
+        let { data: product, error } = await asb
           .from('products')
           .insert(data)
           .select('*')
           .single()
+        if (error && (error.message?.includes('trust_badges_json') || error.code === '42703')) {
+          const fallbackData = { ...data }
+          delete fallbackData.trust_badges_json
+          const rawTags = JSON.parse(fallbackData.tags_json || '[]')
+          const badgeTags = (Array.isArray(body.trustBadges) ? body.trustBadges : []).map((b: string) => `badge:${b}`)
+          fallbackData.tags_json = JSON.stringify([...rawTags.filter((t: string) => !t.startsWith('badge:')), ...badgeTags])
+          const retry = await asb.from('products').insert(fallbackData).select('*').single()
+          product = retry.data
+          error = retry.error
+        }
         if (error || !product) return err(req, error?.message || 'Create failed', 500)
         const images = (body.images || []).map((img: any, i: number) => ({
           product_id: product.id,
@@ -1880,7 +1891,16 @@ Deno.serve(async (req) => {
           const data = productData({ ...body, paymentMethods })
           await asb.from('product_images').delete().eq('product_id', m.id)
           await asb.from('product_specifications').delete().eq('product_id', m.id)
-          const { error } = await asb.from('products').update(data).eq('id', m.id)
+          let { error } = await asb.from('products').update(data).eq('id', m.id)
+          if (error && (error.message?.includes('trust_badges_json') || error.code === '42703')) {
+            const fallbackData = { ...data }
+            delete fallbackData.trust_badges_json
+            const rawTags = JSON.parse(fallbackData.tags_json || '[]')
+            const badgeTags = (Array.isArray(body.trustBadges) ? body.trustBadges : []).map((b: string) => `badge:${b}`)
+            fallbackData.tags_json = JSON.stringify([...rawTags.filter((t: string) => !t.startsWith('badge:')), ...badgeTags])
+            const retry = await asb.from('products').update(fallbackData).eq('id', m.id)
+            error = retry.error
+          }
           if (error) return err(req, error.message, 500)
           const images = (body.images || []).map((img: any, i: number) => ({
             product_id: m.id,

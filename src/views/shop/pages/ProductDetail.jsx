@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ShieldCheck,
@@ -183,6 +183,37 @@ export default function ProductDetail() {
     }
   }
 
+  const p = data?.product
+
+  // Trust badges dynamically configured from Admin Dashboard
+  const activeBadges = useMemo(() => {
+    const selected = Array.isArray(p?.trustBadges) ? p.trustBadges : []
+    if (selected.length === 0) return []
+
+    const badgeMap = {
+      pan_india_shipping: { id: 'pan_india_shipping', label: 'Pan India Shipping', icon: Truck, color: 'text-[#f97316]' },
+      'pan india shipping': { id: 'pan_india_shipping', label: 'Pan India Shipping', icon: Truck, color: 'text-[#f97316]' },
+      tested_gear: { id: 'tested_gear', label: '100% Tested Gear', icon: ShieldCheck, color: 'text-emerald-600' },
+      '100% tested gear': { id: 'tested_gear', label: '100% Tested Gear', icon: ShieldCheck, color: 'text-emerald-600' },
+      warranty_1yr: { id: 'warranty_1yr', label: '1 Year Warranty', icon: BadgeCheck, color: 'text-blue-600' },
+      '1 year warranty': { id: 'warranty_1yr', label: '1 Year Warranty', icon: BadgeCheck, color: 'text-blue-600' },
+      returns_7day: { id: 'returns_7day', label: '7-Day Returns', icon: RotateCcw, color: 'text-purple-600' },
+      '7-day returns': { id: 'returns_7day', label: '7-Day Returns', icon: RotateCcw, color: 'text-purple-600' },
+    }
+
+    const seen = new Set()
+    const result = []
+    for (const item of selected) {
+      const key = String(item).toLowerCase().trim()
+      const def = badgeMap[key]
+      if (def && !seen.has(def.id)) {
+        seen.add(def.id)
+        result.push(def)
+      }
+    }
+    return result
+  }, [p?.trustBadges])
+
   if (pageStatus != null) return <ApiStatusScreen status={pageStatus} onRetry={load} />
   if (!data) {
     return (
@@ -193,7 +224,6 @@ export default function ProductDetail() {
     )
   }
 
-  const p = data.product
   const imgs = p.images || []
   const wishlisted = isWishlisted(p.id)
 
@@ -675,25 +705,30 @@ export default function ProductDetail() {
             </Link>
           )}
 
-          {/* Trust Guarantees */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-slate-100 text-center text-xs text-slate-600">
-            <div className="p-2.5 rounded-lg bg-slate-50 flex flex-col items-center gap-1.5">
-              <Truck size={18} className="text-[#f97316]" />
-              <span className="font-semibold text-[11px]">Pan India Shipping</span>
+          {/* Trust Guarantees — Only displayed if configured for this product */}
+          {activeBadges.length > 0 && (
+            <div
+              className={`grid gap-3 pt-4 border-t border-slate-100 text-center text-xs text-slate-600 ${
+                activeBadges.length === 1
+                  ? 'grid-cols-1'
+                  : activeBadges.length === 2
+                  ? 'grid-cols-2'
+                  : activeBadges.length === 3
+                  ? 'grid-cols-3'
+                  : 'grid-cols-2 sm:grid-cols-4'
+              }`}
+            >
+              {activeBadges.map((badge) => {
+                const IconComponent = badge.icon
+                return (
+                  <div key={badge.id} className="p-2.5 rounded-lg bg-slate-50 flex flex-col items-center gap-1.5">
+                    <IconComponent size={18} className={badge.color} />
+                    <span className="font-semibold text-[11px]">{badge.label}</span>
+                  </div>
+                )
+              })}
             </div>
-            <div className="p-2.5 rounded-lg bg-slate-50 flex flex-col items-center gap-1.5">
-              <ShieldCheck size={18} className="text-emerald-600" />
-              <span className="font-semibold text-[11px]">100% Tested Gear</span>
-            </div>
-            <div className="p-2.5 rounded-lg bg-slate-50 flex flex-col items-center gap-1.5">
-              <BadgeCheck size={18} className="text-blue-600" />
-              <span className="font-semibold text-[11px]">1 Year Warranty</span>
-            </div>
-            <div className="p-2.5 rounded-lg bg-slate-50 flex flex-col items-center gap-1.5">
-              <RotateCcw size={18} className="text-purple-600" />
-              <span className="font-semibold text-[11px]">7-Day Returns</span>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 

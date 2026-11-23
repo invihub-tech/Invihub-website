@@ -86,7 +86,63 @@ export const api = {
   categories: () => edge('/categories'),
   products: (params = {}) => edge(`/products?${new URLSearchParams(params)}`),
   product: (slug) => edge(`/products/${encodeURIComponent(slug)}`),
-  productReviews: (slug) => edge(`/products/${encodeURIComponent(slug)}/reviews`),
+  productReviews: async (slug) => {
+    try {
+      return await edge(`/products/${encodeURIComponent(slug)}/reviews`)
+    } catch (err) {
+      if (supabase) {
+        try {
+          const { data: p } = await supabase
+            .from('products')
+            .select('id, name, slug')
+            .or(`slug.eq.${slug},id.eq.${slug}`)
+            .maybeSingle()
+          if (p) {
+            const { data: reviews } = await supabase
+              .from('product_reviews')
+              .select('id, product_id, customer_name, rating, title, comment, verified_purchase, created_at, updated_at')
+              .eq('product_id', p.id)
+              .eq('status', 'APPROVED')
+              .order('created_at', { ascending: false })
+            const list = reviews || []
+            const totalCount = list.length
+            const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+            let sum = 0
+            for (const r of list) {
+              const stars = Math.min(5, Math.max(1, Number(r.rating) || 1))
+              distribution[stars] = (distribution[stars] || 0) + 1
+              sum += stars
+            }
+            const average = totalCount > 0 ? Math.round((sum / totalCount) * 10) / 10 : 0
+            const percentages = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+            if (totalCount > 0) {
+              for (let s = 1; s <= 5; s++) {
+                percentages[s] = Math.round(((distribution[s] || 0) / totalCount) * 100)
+              }
+            }
+            return {
+              ok: true,
+              productId: p.id,
+              summary: { average, totalCount, distribution, percentages },
+              reviews: list.map((r) => ({
+                id: r.id,
+                customerName: r.customer_name,
+                rating: r.rating,
+                comment: r.comment,
+                verifiedPurchase: r.verified_purchase,
+                createdAt: r.created_at,
+              })),
+            }
+          }
+        } catch (_) {}
+      }
+      return {
+        ok: true,
+        summary: { average: 0, totalCount: 0, distribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }, percentages: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } },
+        reviews: [],
+      }
+    }
+  },
   submitProductReview: (slug, body) =>
     edge(`/products/${encodeURIComponent(slug)}/reviews`, { method: 'POST', body }),
   search: (q) => edge(`/search?q=${encodeURIComponent(q)}`),
@@ -172,7 +228,22 @@ export const api = {
     return { ok: true }
   },
 
-  customerMe: () => edge('/customers/me'),
+  customerMe: async () => {
+    if (supabase) {
+      try {
+        const { data } = await supabase.auth.getSession()
+        if (!data?.session?.access_token) return null
+      } catch {
+        return null
+      }
+    }
+    try {
+      return await edge('/customers/me')
+    } catch (err) {
+      if (err.status === 401) return null
+      throw err
+    }
+  },
   customerUpdate: (body) => edge('/customers/me', { method: 'PUT', body }),
   customerAddAddress: (body) => edge('/customers/addresses', { method: 'POST', body }),
   customerDeleteAddress: (id) => edge(`/customers/addresses/${id}`, { method: 'DELETE' }),
@@ -221,7 +292,18 @@ export const api = {
           .eq('id', id)
           .maybeSingle()
         if (error) throw new ApiError(error.message, 400)
-        if (data) return data
+        if (data) {
+          let trustBadges = []
+          try {
+            if (data.trust_badges_json) {
+              trustBadges = typeof data.trust_badges_json === 'string' ? JSON.parse(data.trust_badges_json) : data.trust_badges_json
+            } else if (data.tags_json) {
+              const tags = typeof data.tags_json === 'string' ? JSON.parse(data.tags_json) : (data.tags_json || [])
+              trustBadges = (tags || []).filter((t) => typeof t === 'string' && t.startsWith('badge:')).map((t) => t.slice(6))
+            }
+          } catch {}
+          return { ...data, trustBadges: Array.isArray(trustBadges) ? trustBadges : [] }
+        }
       }
       throw err
     }

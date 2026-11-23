@@ -4,6 +4,7 @@ import { Trash2, ChevronDown, Check, X } from 'lucide-react'
 import { api } from '../../../models/api'
 import { adminBase } from '../../../config/adminPath'
 import { PAYMENT_METHODS } from '../../../config/paymentMethods'
+import { TRUST_BADGES } from '../../../config/trustBadges'
 
 const empty = {
   name: '',
@@ -31,6 +32,7 @@ const empty = {
   images: [],
   specifications: [{ name: '', value: '' }],
   parts: [],
+  trustBadges: [],
 }
 
 export default function AdminProductForm() {
@@ -72,6 +74,7 @@ export default function AdminProductForm() {
           paymentMethods: p.paymentMethods?.length ? p.paymentMethods : ['RAZORPAY', 'COD'],
           specifications: p.specifications?.length ? p.specifications : [{ name: '', value: '' }],
           parts: Array.isArray(p.parts) ? p.parts : [],
+          trustBadges: Array.isArray(p.trustBadges) ? p.trustBadges : [],
         })
       })
     }
@@ -102,6 +105,7 @@ export default function AdminProductForm() {
         slug: form.slug || form.name.toLowerCase().replace(/\s+/g, '-'),
         features: (form.features || []).filter(Boolean),
         specifications: (form.specifications || []).filter((s) => s.name && s.value),
+        trustBadges: Array.isArray(form.trustBadges) ? form.trustBadges : [],
         parts: (form.parts || [])
           .filter((p) => p && p.name && p.name.trim())
           .map((p) => ({
@@ -376,6 +380,55 @@ export default function AdminProductForm() {
               </label>
             ))}
           </fieldset>
+
+      {/* Product Badges Section */}
+      <div className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-[#c5a059] font-bold">Product Badges</div>
+            <p className="text-[11px] text-white/50 mt-0.5">
+              Select trust guarantee badges to display on this product's detail page. All options are optional.
+            </p>
+          </div>
+          {form.trustBadges?.length > 0 && (
+            <span className="text-xs text-[#c5a059] font-medium bg-[#c5a059]/10 px-2.5 py-0.5 rounded border border-[#c5a059]/30">
+              {form.trustBadges.length} {form.trustBadges.length === 1 ? 'badge selected' : 'badges selected'}
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+          {TRUST_BADGES.map((badge) => {
+            const isChecked =
+              (form.trustBadges || []).includes(badge.id) ||
+              (form.trustBadges || []).includes(badge.label)
+            return (
+              <label
+                key={badge.id}
+                className={`flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
+                  isChecked
+                    ? 'bg-[#c5a059]/15 border-[#c5a059] text-white shadow-sm'
+                    : 'bg-black/40 border-white/10 text-white/70 hover:border-white/20'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={(e) => {
+                    const cur = form.trustBadges || []
+                    const next = e.target.checked
+                      ? [...cur.filter((x) => x !== badge.id && x !== badge.label), badge.id]
+                      : cur.filter((x) => x !== badge.id && x !== badge.label)
+                    set('trustBadges', next)
+                  }}
+                  className="rounded border-white/20 bg-black/40 text-[#c5a059] focus:ring-[#c5a059] focus:ring-offset-0"
+                />
+                <span className="text-xs font-semibold">{badge.label}</span>
+              </label>
+            )
+          })}
+        </div>
+      </div>
       <div>
         <div className="text-xs uppercase text-white/40">Specifications</div>
         {(form.specifications || []).map((s, i) => (
