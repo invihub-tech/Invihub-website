@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
 import {
   ArrowRight,
@@ -15,7 +15,6 @@ import ProductCard from '../components/ProductCard'
 export default function ShopHome() {
   const { cats, featured, fresh, best, allProds, loading, error } = useShopHome()
   const outletCtx = useOutletContext() || {}
-  const [activeTab, setActiveTab] = useState('All')
 
   // Build unique set of products from DB
   const allProducts = useMemo(() => {
@@ -31,27 +30,17 @@ export default function ShopHome() {
     return unique
   }, [allProds, featured, fresh, best])
 
-  // Dynamic tabs from real DB categories + "All"
-  const tabs = useMemo(() => {
-    const catNames = (cats || []).map((c) => c.name)
-    return ['All', ...catNames]
-  }, [cats])
-
-  // Filter by active tab
-  const filteredProducts = useMemo(() => {
-    if (activeTab === 'All') return allProducts.slice(0, 12)
-    return allProducts.filter(
-      (p) =>
-        p.category?.name?.toLowerCase() === activeTab.toLowerCase() ||
-        p.category?.name?.toLowerCase().includes(activeTab.toLowerCase()),
-    )
-  }, [allProducts, activeTab])
-
-  // New arrivals (isNew flag from DB)
-  const newArrivals = useMemo(() => (fresh || []).slice(0, 6), [fresh])
-
-  // Best sellers (from DB best query)
-  const bestSellers = useMemo(() => (best || []).slice(0, 4), [best])
+  // Random selection of items across all categories rather than a single category
+  const randomProducts = useMemo(() => {
+    if (!allProducts || allProducts.length === 0) return []
+    const shuffled = [...allProducts]
+    // Fisher-Yates shuffle
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled.slice(0, 6)
+  }, [allProducts])
 
   const onAddToCart = () => {
     if (outletCtx.onOpenCart) outletCtx.onOpenCart()
@@ -209,49 +198,7 @@ export default function ShopHome() {
       </section>
 
       {/* =========================================================================
-          2. FEATURE VALUE PILLARS
-          ========================================================================= */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-3.5 p-2">
-          <div className="w-10 h-10 rounded-lg bg-orange-50 text-[#f97316] flex items-center justify-center shrink-0">
-            <Box size={20} />
-          </div>
-          <div>
-            <div className="font-bold text-xs sm:text-sm text-slate-900">Wide Product Range</div>
-            <div className="text-[11px] text-slate-500">For Makers &amp; Professionals</div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3.5 p-2">
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <ShieldCheck size={20} />
-          </div>
-          <div>
-            <div className="font-bold text-xs sm:text-sm text-slate-900">Quality Assured</div>
-            <div className="text-[11px] text-slate-500">Tested &amp; Calibrated In-Lab</div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3.5 p-2">
-          <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <Truck size={20} />
-          </div>
-          <div>
-            <div className="font-bold text-xs sm:text-sm text-slate-900">Fast &amp; Secure Delivery</div>
-            <div className="text-[11px] text-slate-500">Pan India Tracked Shipping</div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3.5 p-2">
-          <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-            <Headphones size={20} />
-          </div>
-          <div>
-            <div className="font-bold text-xs sm:text-sm text-slate-900">Expert Engineering Support</div>
-            <div className="text-[11px] text-slate-500">Help for Builds &amp; Projects</div>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================================
-          3. SHOP BY CATEGORY — Dynamic from DB
+          2. SHOP BY CATEGORY — Dynamic from DB
           ========================================================================= */}
       {cats && cats.length > 0 && (
         <section id="categories" className="space-y-4">
@@ -362,126 +309,64 @@ export default function ShopHome() {
       )}
 
       {/* =========================================================================
-          4. FEATURED PRODUCTS — With Dynamic Category Tabs from DB
+          3. PRODUCTS — Random Selection from Across All Categories
           ========================================================================= */}
-      <section className="space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2 border-b border-slate-200">
+      <section className="space-y-6">
+        <div className="flex items-center justify-between pb-2 border-b border-slate-200">
           <div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Featured Products</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Top-rated gear selected by our team</p>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Products</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Explore our engineering hardware, maker kits &amp; electronics</p>
           </div>
-
-          {/* Dynamic Category Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 hide-scrollbar">
-            {tabs.slice(0, 8).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shrink-0 ${
-                  activeTab === tab
-                    ? 'bg-[#f97316] text-white shadow-sm'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+          <Link
+            to="/shop/products"
+            className="flex items-center gap-1 text-xs font-bold text-[#f97316] hover:text-[#ea580c] transition-colors"
+          >
+            <span>View All</span>
+            <ChevronRight size={14} />
+          </Link>
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-5">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="h-72 rounded-xl bg-slate-100 animate-pulse" />
+              <div key={i} className="h-80 rounded-xl bg-slate-100 animate-pulse" />
             ))}
           </div>
         ) : error ? (
           <div className="text-center py-12 text-slate-500 text-sm">
             <p>{error}</p>
           </div>
-        ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5">
-            {filteredProducts.map((p) => (
-              <ProductCard key={p.id} product={p} onQuickAdd={onAddToCart} />
-            ))}
+        ) : randomProducts.length > 0 ? (
+          <div className="space-y-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 sm:gap-5">
+              {randomProducts.map((p) => (
+                <ProductCard key={p.id} product={p} onQuickAdd={onAddToCart} />
+              ))}
+            </div>
+
+            {/* Explore All Products CTA Button */}
+            <div className="text-center pt-2">
+              <Link
+                to="/shop/products"
+                className="btn-shop-primary inline-flex items-center gap-2 text-sm sm:text-base px-8 py-3.5 font-bold shadow-lg shadow-orange-950/20 hover:scale-[1.02] transition-all"
+              >
+                <span>Explore All Products</span>
+                <ArrowRight size={16} />
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="text-center py-12 text-slate-500 text-sm">
-            <p>No products in this category yet.</p>
+            <p>No products available at the moment.</p>
             <Link to="/shop/products" className="mt-2 inline-block text-[#f97316] font-semibold">
-              View all products →
+              Browse all products →
             </Link>
           </div>
         )}
       </section>
 
       {/* =========================================================================
-          5. BEST SELLERS
-          ========================================================================= */}
-      {bestSellers.length > 0 && (
-        <section className="space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Best Sellers</h2>
-                <span className="bg-orange-100 text-orange-700 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full">
-                  Top Picks
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">Most ordered products from our catalogue</p>
-            </div>
-            <Link
-              to="/shop/products?sort=best"
-              className="flex items-center gap-1 text-xs font-bold text-[#f97316] hover:text-[#ea580c] transition-colors"
-            >
-              <span>View All</span>
-              <ChevronRight size={14} />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5">
-            {bestSellers.map((p) => (
-              <ProductCard key={p.id} product={p} onQuickAdd={onAddToCart} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* =========================================================================
-          6. NEW ARRIVALS
-          ========================================================================= */}
-      {newArrivals.length > 0 && (
-        <section className="space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">New Arrivals</h2>
-                <span className="bg-sky-100 text-sky-700 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full">
-                  Fresh Stock
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">Newly added products from the latest stock</p>
-            </div>
-            <Link
-              to="/shop/products?isNew=1"
-              className="flex items-center gap-1 text-xs font-bold text-[#f97316] hover:text-[#ea580c] transition-colors"
-            >
-              <span>View All</span>
-              <ChevronRight size={14} />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 sm:gap-5">
-            {newArrivals.map((p) => (
-              <ProductCard key={p.id} product={p} onQuickAdd={onAddToCart} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* =========================================================================
-          7. EMPTY STATE — when no products are in DB yet
+          EMPTY STATE — when no products are in DB yet
           ========================================================================= */}
       {!loading && !error && allProducts.length === 0 && (
         <section className="py-16 text-center space-y-4">
@@ -503,7 +388,7 @@ export default function ShopHome() {
       )}
 
       {/* =========================================================================
-          8. CUSTOM 3D PRINTING & PROTOTYPING CTA
+          CUSTOM 3D PRINTING & PROTOTYPING CTA
           ========================================================================= */}
       <section className="rounded-2xl bg-gradient-to-r from-orange-600 via-amber-600 to-orange-700 text-white p-8 sm:p-12 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="space-y-2 max-w-xl text-center md:text-left">
