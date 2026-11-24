@@ -310,6 +310,8 @@ export default function ProductDetail() {
               <img
                 src={(imgs[activeImg] || imgs[0]).url}
                 alt={(imgs[activeImg] || imgs[0]).alt || p.name}
+                loading="eager"
+                fetchPriority="high"
                 className="w-full h-full max-h-[440px] sm:max-h-[480px] object-contain object-center mix-blend-multiply transition-transform duration-300 pointer-events-none"
               />
             ) : (
@@ -482,7 +484,7 @@ export default function ProductDetail() {
               )}
             </div>
             <div className="text-[11px] text-slate-500 mt-1">
-              Inclusive of all taxes. Free express shipping across India on this item.
+              Inclusive of all taxes.
             </div>
           </div>
 
@@ -648,7 +650,7 @@ export default function ProductDetail() {
             <div className="pt-4">
               <div className={`flex items-center gap-1.5 text-xs font-bold ${p.inStock ? 'text-emerald-600' : 'text-red-500'}`}>
                 <Check size={14} strokeWidth={3} />
-                <span>{p.inStock ? 'In Stock (Ships in 24 Hours)' : 'Out of Stock'}</span>
+                <span>{p.inStock ? 'In Stock' : 'Out of Stock'}</span>
               </div>
               <div className="text-[11px] text-slate-400 mt-0.5">SKU: {p.sku}</div>
             </div>
