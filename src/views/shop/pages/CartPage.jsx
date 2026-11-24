@@ -128,9 +128,8 @@ export default function CartPage() {
               </div>
               <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                 <div
-                  className={`h-full transition-all duration-500 rounded-full ${
-                    shippingProgress >= 100 ? 'bg-emerald-500' : 'bg-[#f97316]'
-                  }`}
+                  className={`h-full transition-all duration-500 rounded-full ${shippingProgress >= 100 ? 'bg-emerald-500' : 'bg-[#f97316]'
+                    }`}
                   style={{ width: `${shippingProgress}%` }}
                 />
               </div>

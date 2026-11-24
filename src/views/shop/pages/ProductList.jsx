@@ -199,19 +199,11 @@ export default function ProductList({ categoryMode = false }) {
             className="flex items-center gap-2 text-xs font-bold text-slate-800"
           >
             <SlidersHorizontal size={14} className="text-[#f97316]" />
-            <span>Filter Products</span>
+            <span>Filter & Sort</span>
           </button>
-          <select
-            value={query.sort}
-            onChange={(e) => setFilter('sort', e.target.value)}
-            className="text-xs bg-slate-50 border border-slate-200 rounded px-2.5 py-1.5 font-semibold text-slate-700 outline-none"
-          >
-            <option value="featured">Sort: Featured</option>
-            <option value="best">Sort: Popularity</option>
-            <option value="price_asc">Price: Low to High</option>
-            <option value="price_desc">Price: High to Low</option>
-            <option value="newest">Newest Arrivals</option>
-          </select>
+          <span className="text-xs text-slate-500 font-medium">
+            {displayedItems.length} products
+          </span>
         </div>
 
         {/* Left Sidebar Filters */}
@@ -235,8 +227,26 @@ export default function ProductList({ categoryMode = false }) {
             </button>
           </div>
 
-          {/* Categories */}
+          {/* Sort By */}
           <div>
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+              Sort by
+            </div>
+            <select
+              value={query.sort}
+              onChange={(e) => setFilter('sort', e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none cursor-pointer hover:border-slate-300 transition-colors"
+            >
+              <option value="featured">Featured</option>
+              <option value="best">Popularity / Best Selling</option>
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+              <option value="newest">Newest Arrivals</option>
+            </select>
+          </div>
+
+          {/* Categories */}
+          <div className="pt-4 border-t border-slate-100">
             <div className="flex items-center justify-between mb-2.5">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                 Department {cats.length > 0 && `(${cats.length})`}
@@ -345,26 +355,11 @@ export default function ProductList({ categoryMode = false }) {
 
         {/* Right Product Grid */}
         <section className="lg:col-span-9 xl:col-span-10 space-y-5">
-          {/* Desktop Sort Header */}
+          {/* Desktop Results Count Header */}
           <div className="hidden lg:flex items-center justify-between bg-white p-3 px-4 rounded-xl border border-slate-200">
             <span className="text-xs text-slate-500 font-medium">
-              Showing {displayedItems.length} products
+              Showing <strong className="text-slate-900 font-bold">{displayedItems.length}</strong> {displayedItems.length === 1 ? 'product' : 'products'}
             </span>
-
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-slate-400 font-semibold">Sort by:</span>
-              <select
-                value={query.sort}
-                onChange={(e) => setFilter('sort', e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded px-3 py-1.5 font-bold text-slate-700 outline-none cursor-pointer hover:border-slate-300"
-              >
-                <option value="featured">Featured</option>
-                <option value="best">Popularity / Best Selling</option>
-                <option value="price_asc">Price: Low to High</option>
-                <option value="price_desc">Price: High to Low</option>
-                <option value="newest">Newest Arrivals</option>
-              </select>
-            </div>
           </div>
 
           {/* Product Cards */}
