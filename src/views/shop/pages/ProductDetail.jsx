@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ShieldCheck,
@@ -30,6 +30,7 @@ import {
   Disc,
 } from 'lucide-react'
 import { api, inr } from '../../../models/api'
+import { supabase } from '../../../lib/supabase'
 import ProductCard from '../components/ProductCard'
 import { ApiStatusScreen } from '../../ui/ApiStatusScreen'
 import { useWishlist } from '../../../hooks/useWishlist'
@@ -160,9 +161,15 @@ export default function ProductDetail() {
         api
           .productFilamentVariations(targetId)
           .then((vars) => {
-            setFilamentVariations(vars || [])
-            if (vars && vars.length > 0) {
-              setSelectedVariationId(vars[0].filamentId)
+            const list = vars || []
+            setFilamentVariations(list)
+            if (list.length > 0) {
+              const firstInStock = list.find(
+                (v) => (v.filament?.stockSpools ?? 0) > 0 && v.isAvailable
+              )
+              setSelectedVariationId(firstInStock ? firstInStock.filamentId : null)
+            } else {
+              setSelectedVariationId(null)
             }
           })
           .catch(() => {})
@@ -265,9 +272,13 @@ export default function ProductDetail() {
   const wishlisted = isWishlisted(p.id)
 
   const hasFilamentVariations = filamentVariations.length > 0
-  const activeVariation = hasFilamentVariations
-    ? filamentVariations.find((v) => v.filamentId === selectedVariationId) || filamentVariations[0]
+  const activeVariation = hasFilamentVariations && selectedVariationId
+    ? filamentVariations.find((v) => v.filamentId === selectedVariationId)
     : null
+
+  const hasAnyInStock = hasFilamentVariations
+    ? filamentVariations.some((v) => (v.filament?.stockSpools ?? 0) > 0 && v.isAvailable)
+    : true
 
   const priceAdjustment = activeVariation ? Number(activeVariation.priceAdjustment || 0) : 0
   const basePrice = p.price || 0
@@ -276,22 +287,41 @@ export default function ProductDetail() {
   const mrp = Math.max(price, baseMrp + priceAdjustment)
   const discountPercent = mrp > price ? Math.round(((mrp - price) / mrp) * 100) : p.discount || 0
 
-  const variationStock = activeVariation ? (activeVariation.filament?.stockSpools ?? 0) : p.stock
+  const variationStock = activeVariation ? (activeVariation.filament?.stockSpools ?? 0) : 0
   const isItemInStock = hasFilamentVariations
-    ? Boolean(activeVariation?.isAvailable) && variationStock > 0
+    ? Boolean(activeVariation && activeVariation.isAvailable && variationStock > 0)
     : p.inStock
 
-  const isFilament = hasFilamentVariations || Boolean(
+  const isFilament = Boolean(
     p.category?.slug?.toLowerCase().includes('filament') ||
-    p.category?.name?.toLowerCase().includes('filament')
+    p.category?.name?.toLowerCase().includes('filament') ||
+    p.name?.toLowerCase().includes('filament spool')
   )
 
   const handleAddToCart = async () => {
     if (!isItemInStock || adding) return
+    if (hasFilamentVariations && !activeVariation) {
+      setErr('Please select an available color')
+      return
+    }
     setAdding(true)
     setErr('')
     try {
       if (activeVariation) {
+        // Real-time stock check directly from supabase before adding to cart
+        if (supabase && activeVariation.filamentId) {
+          const { data: latestFil } = await supabase
+            .from('filaments')
+            .select('stock_spools, is_active')
+            .eq('id', activeVariation.filamentId)
+            .single()
+          if (!latestFil || (latestFil.stock_spools || 0) <= 0 || !latestFil.is_active) {
+            setErr(`"${activeVariation.filament?.colorName || 'Selected color'}" is out of stock`)
+            const targetId = p?.id || slug
+            api.productFilamentVariations(targetId).then((vars) => setFilamentVariations(vars || [])).catch(() => {})
+            return
+          }
+        }
         try {
           const stored = JSON.parse(localStorage.getItem('invihub_cart_variations') || '{}')
           stored[p.id] = {
@@ -321,8 +351,26 @@ export default function ProductDetail() {
 
   const handleBuyNow = async () => {
     if (!isItemInStock) return
+    if (hasFilamentVariations && !activeVariation) {
+      setErr('Please select an available color')
+      return
+    }
     try {
       if (activeVariation) {
+        // Real-time stock check directly from supabase before proceeding
+        if (supabase && activeVariation.filamentId) {
+          const { data: latestFil } = await supabase
+            .from('filaments')
+            .select('stock_spools, is_active')
+            .eq('id', activeVariation.filamentId)
+            .single()
+          if (!latestFil || (latestFil.stock_spools || 0) <= 0 || !latestFil.is_active) {
+            setErr(`"${activeVariation.filament?.colorName || 'Selected color'}" is out of stock`)
+            const targetId = p?.id || slug
+            api.productFilamentVariations(targetId).then((vars) => setFilamentVariations(vars || [])).catch(() => {})
+            return
+          }
+        }
         try {
           const stored = JSON.parse(localStorage.getItem('invihub_cart_variations') || '{}')
           stored[p.id] = {
@@ -551,93 +599,67 @@ export default function ProductDetail() {
             </div>
           </div>
 
-          {/* Filament Variation Selector (Only displayed if product has assigned filament variations) */}
+          {/* Color Selector Arranged in a Line */}
           {hasFilamentVariations && (
-            <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-4 space-y-3.5 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Disc size={16} className="text-[#f97316]" />
-                  <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                    Select Filament Variation
-                  </span>
-                </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-800">Color:</span>
                 {activeVariation && (
-                  <span
-                    className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
-                      isItemInStock
-                        ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                        : 'text-red-700 bg-red-50 border-red-200'
-                    }`}
-                  >
-                    {isItemInStock ? `${variationStock} spools in stock` : 'Out of Stock'}
+                  <span className="text-xs font-semibold text-slate-700">
+                    {activeVariation.filament?.colorName}
                   </span>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              {/* Colors arranged in a line */}
+              <div className="flex flex-wrap items-center gap-2.5">
                 {filamentVariations.map((v) => {
                   const fil = v.filament
-                  const isSelected = selectedVariationId === v.filamentId
                   const inStock = (fil?.stockSpools ?? 0) > 0 && v.isAvailable
+                  const isSelected = selectedVariationId === v.filamentId && inStock
+
                   return (
                     <button
                       key={v.filamentId}
                       type="button"
-                      onClick={() => setSelectedVariationId(v.filamentId)}
-                      className={`text-left p-3 rounded-lg border transition-all flex items-start gap-2.5 ${
-                        isSelected
-                          ? 'border-[#f97316] bg-white ring-2 ring-[#f97316]/20 shadow-sm'
-                          : 'border-slate-200 bg-white/80 hover:border-slate-300'
-                      } ${!inStock ? 'opacity-60' : ''}`}
+                      disabled={!inStock}
+                      onClick={() => {
+                        if (inStock) {
+                          setSelectedVariationId(v.filamentId)
+                          setErr('')
+                        }
+                      }}
+                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                        !inStock
+                          ? 'opacity-40 cursor-not-allowed bg-slate-100/70 border-slate-200 text-slate-400'
+                          : isSelected
+                          ? 'bg-orange-50 border-[#f97316] text-[#f97316] ring-1 ring-[#f97316] shadow-2xs font-semibold cursor-pointer'
+                          : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer'
+                      }`}
+                      title={inStock ? fil?.colorName : `${fil?.colorName} (Out of stock)`}
                     >
                       <span
-                        className="w-4 h-4 rounded-full border border-slate-300 shrink-0 mt-0.5 shadow-inner"
-                        style={{ backgroundColor: fil?.colorHex || '#000000' }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-bold text-slate-900 truncate">
-                            {fil?.colorName}
-                          </span>
-                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700">
-                            {fil?.material}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-500 mt-0.5 flex flex-wrap items-center gap-1.5">
-                          <span>{fil?.diameter}mm</span>
-                          <span>•</span>
-                          <span>
-                            {fil?.weightGrams >= 1000 ? `${fil.weightGrams / 1000}kg` : `${fil.weightGrams}g`}
-                          </span>
-                          {v.priceAdjustment !== 0 && (
-                            <span className="font-semibold text-orange-600">
-                              ({v.priceAdjustment > 0 ? `+₹${v.priceAdjustment}` : `-₹${Math.abs(v.priceAdjustment)}`})
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[10px] mt-1">
-                          {inStock ? (
-                            <span className="text-emerald-600 font-medium">● Available ({fil?.stockSpools} spools)</span>
-                          ) : (
-                            <span className="text-red-500 font-medium">● Out of stock</span>
-                          )}
-                        </div>
-                      </div>
+                        className={`w-3.5 h-3.5 rounded-full border shrink-0 relative overflow-hidden ${
+                          inStock ? 'border-slate-300 shadow-inner' : 'border-slate-300 opacity-60'
+                        }`}
+                        style={{ backgroundColor: fil?.colorHex || '#111827' }}
+                      >
+                        {!inStock && (
+                          <span className="absolute inset-0 m-auto w-[140%] h-[1.5px] bg-red-500 -rotate-45" />
+                        )}
+                      </span>
+                      <span className={!inStock ? 'line-through' : ''}>
+                        {fil?.colorName}
+                      </span>
                     </button>
                   )
                 })}
               </div>
 
-              {activeVariation && (
-                <div className="text-[11px] text-slate-600 bg-white/90 p-2.5 rounded-lg border border-orange-100 flex items-center justify-between">
-                  <span>
-                    Selected: <strong>{activeVariation.filament?.material}</strong> · {activeVariation.filament?.colorName} ({activeVariation.filament?.diameter}mm, {activeVariation.filament?.weightGrams >= 1000 ? `${activeVariation.filament.weightGrams / 1000}kg` : `${activeVariation.filament?.weightGrams}g`})
-                  </span>
-                  {activeVariation.priceAdjustment !== 0 && (
-                    <span className="font-bold text-orange-700">
-                      Adjustment: {activeVariation.priceAdjustment > 0 ? `+${inr(activeVariation.priceAdjustment)}` : `-${inr(Math.abs(activeVariation.priceAdjustment))}`}
-                    </span>
-                  )}
+              {!hasAnyInStock && (
+                <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2 mt-1">
+                  <AlertCircle size={14} className="shrink-0 text-red-500" />
+                  <span>All colors for this product are currently out of stock.</span>
                 </div>
               )}
             </div>
@@ -747,18 +769,31 @@ export default function ProductDetail() {
             </div>
 
             <div className="pt-4">
-              <div className={`flex items-center gap-1.5 text-xs font-bold ${isItemInStock ? 'text-emerald-600' : 'text-red-500'}`}>
-                <Check size={14} strokeWidth={3} />
-                <span>
-                  {isItemInStock
-                    ? hasFilamentVariations
-                      ? `In Stock (${variationStock} spools)`
-                      : 'In Stock'
-                    : 'Out of Stock'}
-                </span>
+              <div
+                className={`flex items-center gap-1.5 text-xs font-bold ${
+                  isItemInStock ? 'text-emerald-600' : 'text-red-500'
+                }`}
+              >
+                {isItemInStock ? (
+                  <>
+                    <Check size={14} strokeWidth={3} />
+                    <span>In Stock</span>
+                  </>
+                ) : (
+                  <>
+                    <X size={14} strokeWidth={3} />
+                    <span>
+                      {hasFilamentVariations && !hasAnyInStock
+                        ? 'Out of Stock (All colors unavailable)'
+                        : hasFilamentVariations && !activeVariation
+                        ? 'Please select an available color'
+                        : 'Out of Stock'}
+                    </span>
+                  </>
+                )}
               </div>
               <div className="text-[11px] text-slate-400 mt-0.5">
-                SKU: {activeVariation?.filament?.sku || p.sku}
+                SKU: {p.sku}
               </div>
             </div>
           </div>
