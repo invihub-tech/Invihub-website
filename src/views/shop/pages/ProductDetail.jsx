@@ -27,6 +27,7 @@ import {
   X,
   Sparkles,
   Info,
+  Disc,
 } from 'lucide-react'
 import { api, inr } from '../../../models/api'
 import ProductCard from '../components/ProductCard'
@@ -74,6 +75,10 @@ export default function ProductDetail() {
   const [selectedWeight, setSelectedWeight] = useState('1kg')
   const [selectedPartColors, setSelectedPartColors] = useState({})
   const [err, setErr] = useState('')
+
+  // Product-assigned filament variations from inventory
+  const [filamentVariations, setFilamentVariations] = useState([])
+  const [selectedVariationId, setSelectedVariationId] = useState(null)
 
   // Accordion open/close state for detail sections & reviews
   const [openSections, setOpenSections] = useState({
@@ -150,6 +155,17 @@ export default function ProductDetail() {
           })
           setSelectedPartColors(init)
         }
+        // Load assigned filament variations
+        const targetId = d?.product?.id || slug
+        api
+          .productFilamentVariations(targetId)
+          .then((vars) => {
+            setFilamentVariations(vars || [])
+            if (vars && vars.length > 0) {
+              setSelectedVariationId(vars[0].filamentId)
+            }
+          })
+          .catch(() => {})
       })
       .catch((e) => setPageStatus(e.status ?? 500))
   }
@@ -165,11 +181,12 @@ export default function ProductDetail() {
     api
       .customerMe()
       .then((c) => {
-        if (c?.email) {
+        const cust = c?.customer || c
+        if (cust?.email) {
           setReviewForm((f) => ({
             ...f,
-            name: f.name || c.name || '',
-            email: f.email || c.email || '',
+            name: f.name || cust.name || '',
+            email: f.email || cust.email || '',
           }))
         }
       })
@@ -247,22 +264,49 @@ export default function ProductDetail() {
   const imgs = p.images || []
   const wishlisted = isWishlisted(p.id)
 
-  const mrp = p.mrp || p.price || 0
-  const price = p.price || 0
+  const hasFilamentVariations = filamentVariations.length > 0
+  const activeVariation = hasFilamentVariations
+    ? filamentVariations.find((v) => v.filamentId === selectedVariationId) || filamentVariations[0]
+    : null
+
+  const priceAdjustment = activeVariation ? Number(activeVariation.priceAdjustment || 0) : 0
+  const basePrice = p.price || 0
+  const price = Math.max(0, basePrice + priceAdjustment)
+  const baseMrp = p.mrp || p.price || 0
+  const mrp = Math.max(price, baseMrp + priceAdjustment)
   const discountPercent = mrp > price ? Math.round(((mrp - price) / mrp) * 100) : p.discount || 0
 
-  const isFilament =
-    p.name?.toLowerCase().includes('filament') ||
-    p.name?.toLowerCase().includes('pla') ||
-    p.name?.toLowerCase().includes('petg') ||
-    p.name?.toLowerCase().includes('abs') ||
+  const variationStock = activeVariation ? (activeVariation.filament?.stockSpools ?? 0) : p.stock
+  const isItemInStock = hasFilamentVariations
+    ? Boolean(activeVariation?.isAvailable) && variationStock > 0
+    : p.inStock
+
+  const isFilament = hasFilamentVariations || Boolean(
+    p.category?.slug?.toLowerCase().includes('filament') ||
     p.category?.name?.toLowerCase().includes('filament')
+  )
 
   const handleAddToCart = async () => {
-    if (!p.inStock || adding) return
+    if (!isItemInStock || adding) return
     setAdding(true)
     setErr('')
     try {
+      if (activeVariation) {
+        try {
+          const stored = JSON.parse(localStorage.getItem('invihub_cart_variations') || '{}')
+          stored[p.id] = {
+            filamentId: activeVariation.filamentId,
+            name: activeVariation.filament?.name,
+            material: activeVariation.filament?.material,
+            colorName: activeVariation.filament?.colorName,
+            colorHex: activeVariation.filament?.colorHex,
+            diameter: activeVariation.filament?.diameter,
+            weightGrams: activeVariation.filament?.weightGrams,
+            priceAdjustment: activeVariation.priceAdjustment,
+          }
+          localStorage.setItem('invihub_cart_variations', JSON.stringify(stored))
+        } catch (_) {}
+      }
       await api.addToCart(p.id, qty)
       window.dispatchEvent(new Event('invi-cart'))
       window.dispatchEvent(new Event('invi-cart-open'))
@@ -276,8 +320,24 @@ export default function ProductDetail() {
   }
 
   const handleBuyNow = async () => {
-    if (!p.inStock) return
+    if (!isItemInStock) return
     try {
+      if (activeVariation) {
+        try {
+          const stored = JSON.parse(localStorage.getItem('invihub_cart_variations') || '{}')
+          stored[p.id] = {
+            filamentId: activeVariation.filamentId,
+            name: activeVariation.filament?.name,
+            material: activeVariation.filament?.material,
+            colorName: activeVariation.filament?.colorName,
+            colorHex: activeVariation.filament?.colorHex,
+            diameter: activeVariation.filament?.diameter,
+            weightGrams: activeVariation.filament?.weightGrams,
+            priceAdjustment: activeVariation.priceAdjustment,
+          }
+          localStorage.setItem('invihub_cart_variations', JSON.stringify(stored))
+        } catch (_) {}
+      }
       await api.addToCart(p.id, qty)
       window.dispatchEvent(new Event('invi-cart'))
       navigate('/shop/checkout')
@@ -491,59 +551,95 @@ export default function ProductDetail() {
             </div>
           </div>
 
-          {/* Filament Color Selector */}
-          {isFilament && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-800">
-                  Select Color: <span className="font-normal text-slate-600">{FILAMENT_COLORS[selectedColor].name}</span>
-                </span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                {FILAMENT_COLORS.map((c, idx) => (
-                  <button
-                    key={c.name}
-                    type="button"
-                    onClick={() => setSelectedColor(idx)}
-                    title={c.name}
-                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
-                      selectedColor === idx ? 'scale-110 ring-2 ring-orange-500 ring-offset-2' : 'hover:scale-105'
-                    } ${c.border ? 'border border-slate-300' : ''}`}
-                    style={{ backgroundColor: c.hex }}
-                  >
-                    {selectedColor === idx && (
-                      <Check
-                        size={14}
-                        className={c.name.includes('White') ? 'text-slate-900' : 'text-white'}
-                        strokeWidth={3}
-                      />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Weight / Variant Selector */}
-          {isFilament && (
-            <div className="space-y-2">
-              <span className="block text-xs font-bold text-slate-800">Spool Weight:</span>
-              <div className="flex items-center gap-2">
-                {WEIGHT_OPTIONS.map((w) => (
-                  <button
-                    key={w}
-                    type="button"
-                    onClick={() => setSelectedWeight(w)}
-                    className={`px-4 py-2 rounded-lg text-xs font-bold border transition-colors ${
-                      selectedWeight === w
-                        ? 'border-[#f97316] bg-orange-50 text-[#f97316]'
-                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+          {/* Filament Variation Selector (Only displayed if product has assigned filament variations) */}
+          {hasFilamentVariations && (
+            <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-4 space-y-3.5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Disc size={16} className="text-[#f97316]" />
+                  <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                    Select Filament Variation
+                  </span>
+                </div>
+                {activeVariation && (
+                  <span
+                    className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${
+                      isItemInStock
+                        ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                        : 'text-red-700 bg-red-50 border-red-200'
                     }`}
                   >
-                    {w}
-                  </button>
-                ))}
+                    {isItemInStock ? `${variationStock} spools in stock` : 'Out of Stock'}
+                  </span>
+                )}
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                {filamentVariations.map((v) => {
+                  const fil = v.filament
+                  const isSelected = selectedVariationId === v.filamentId
+                  const inStock = (fil?.stockSpools ?? 0) > 0 && v.isAvailable
+                  return (
+                    <button
+                      key={v.filamentId}
+                      type="button"
+                      onClick={() => setSelectedVariationId(v.filamentId)}
+                      className={`text-left p-3 rounded-lg border transition-all flex items-start gap-2.5 ${
+                        isSelected
+                          ? 'border-[#f97316] bg-white ring-2 ring-[#f97316]/20 shadow-sm'
+                          : 'border-slate-200 bg-white/80 hover:border-slate-300'
+                      } ${!inStock ? 'opacity-60' : ''}`}
+                    >
+                      <span
+                        className="w-4 h-4 rounded-full border border-slate-300 shrink-0 mt-0.5 shadow-inner"
+                        style={{ backgroundColor: fil?.colorHex || '#000000' }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-xs font-bold text-slate-900 truncate">
+                            {fil?.colorName}
+                          </span>
+                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700">
+                            {fil?.material}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5 flex flex-wrap items-center gap-1.5">
+                          <span>{fil?.diameter}mm</span>
+                          <span>•</span>
+                          <span>
+                            {fil?.weightGrams >= 1000 ? `${fil.weightGrams / 1000}kg` : `${fil.weightGrams}g`}
+                          </span>
+                          {v.priceAdjustment !== 0 && (
+                            <span className="font-semibold text-orange-600">
+                              ({v.priceAdjustment > 0 ? `+₹${v.priceAdjustment}` : `-₹${Math.abs(v.priceAdjustment)}`})
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] mt-1">
+                          {inStock ? (
+                            <span className="text-emerald-600 font-medium">● Available ({fil?.stockSpools} spools)</span>
+                          ) : (
+                            <span className="text-red-500 font-medium">● Out of stock</span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {activeVariation && (
+                <div className="text-[11px] text-slate-600 bg-white/90 p-2.5 rounded-lg border border-orange-100 flex items-center justify-between">
+                  <span>
+                    Selected: <strong>{activeVariation.filament?.material}</strong> · {activeVariation.filament?.colorName} ({activeVariation.filament?.diameter}mm, {activeVariation.filament?.weightGrams >= 1000 ? `${activeVariation.filament.weightGrams / 1000}kg` : `${activeVariation.filament?.weightGrams}g`})
+                  </span>
+                  {activeVariation.priceAdjustment !== 0 && (
+                    <span className="font-bold text-orange-700">
+                      Adjustment: {activeVariation.priceAdjustment > 0 ? `+${inr(activeVariation.priceAdjustment)}` : `-${inr(Math.abs(activeVariation.priceAdjustment))}`}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -651,11 +747,19 @@ export default function ProductDetail() {
             </div>
 
             <div className="pt-4">
-              <div className={`flex items-center gap-1.5 text-xs font-bold ${p.inStock ? 'text-emerald-600' : 'text-red-500'}`}>
+              <div className={`flex items-center gap-1.5 text-xs font-bold ${isItemInStock ? 'text-emerald-600' : 'text-red-500'}`}>
                 <Check size={14} strokeWidth={3} />
-                <span>{p.inStock ? 'In Stock' : 'Out of Stock'}</span>
+                <span>
+                  {isItemInStock
+                    ? hasFilamentVariations
+                      ? `In Stock (${variationStock} spools)`
+                      : 'In Stock'
+                    : 'Out of Stock'}
+                </span>
               </div>
-              <div className="text-[11px] text-slate-400 mt-0.5">SKU: {p.sku}</div>
+              <div className="text-[11px] text-slate-400 mt-0.5">
+                SKU: {activeVariation?.filament?.sku || p.sku}
+              </div>
             </div>
           </div>
 
@@ -665,7 +769,7 @@ export default function ProductDetail() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
             <button
               type="button"
-              disabled={!p.inStock || adding}
+              disabled={!isItemInStock || adding}
               onClick={handleAddToCart}
               className={`btn-shop-outline py-3.5 text-xs font-bold gap-2 ${
                 added ? '!border-emerald-500 !text-emerald-600 !bg-emerald-50' : ''
@@ -686,7 +790,7 @@ export default function ProductDetail() {
 
             <button
               type="button"
-              disabled={!p.inStock}
+              disabled={!isItemInStock}
               onClick={handleBuyNow}
               className="btn-shop-primary py-3.5 text-xs font-bold gap-2 shadow-lg shadow-orange-950/20"
             >
@@ -989,11 +1093,11 @@ export default function ProductDetail() {
       <section id="customer-reviews" className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-10 space-y-8 scroll-mt-28">
         {/* Section Header */}
         <div className="border-b border-slate-200 pb-5">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          <div className="text-xs font-bold uppercase tracking-wider text-[#f97316]">
             Verified Feedback
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5 mt-0.5">
-            <MessageSquare className="text-slate-700" size={24} />
+            <MessageSquare className="text-[#f97316]" size={24} />
             <span>Customer Reviews</span>
             {reviewsData.summary.totalCount > 0 && (
               <span className="text-sm font-bold text-slate-400">

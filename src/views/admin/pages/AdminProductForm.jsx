@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { Trash2, ChevronDown, Check, X } from 'lucide-react'
-import { api } from '../../../models/api'
+import { useNavigate, useParams, Link } from 'react-router-dom'
+import { Trash2, ChevronDown, Check, X, Disc, Plus, Layers, AlertCircle } from 'lucide-react'
+import { api, inr } from '../../../models/api'
 import { adminBase } from '../../../config/adminPath'
 import { PAYMENT_METHODS } from '../../../config/paymentMethods'
 import { TRUST_BADGES } from '../../../config/trustBadges'
@@ -44,6 +44,11 @@ export default function AdminProductForm() {
   const [catDropdownOpen, setCatDropdownOpen] = useState(false)
   const catDropdownRef = useRef(null)
 
+  // Filament Variations
+  const [allFilaments, setAllFilaments] = useState([])
+  const [filamentVariations, setFilamentVariations] = useState([])
+  const [selectedFilamentToAdd, setSelectedFilamentToAdd] = useState('')
+
   useEffect(() => {
     const handleOutside = (e) => {
       if (catDropdownRef.current && !catDropdownRef.current.contains(e.target)) {
@@ -56,10 +61,15 @@ export default function AdminProductForm() {
 
   useEffect(() => {
     api.adminCategories().then(setCats)
+    api.adminFilaments().then((res) => setAllFilaments(res?.filaments || [])).catch(() => {})
     if (id) {
+      api.adminProductFilamentVariations(id).then((vars) => setFilamentVariations(vars || [])).catch(() => {})
       api.adminProducts().then((rows) => {
-        const p = rows.find((r) => r.id === id)
+        const p = rows.find((r) => r.id === id || r.slug === id)
         if (!p) return
+        if (p.id && p.id !== id) {
+          api.adminProductFilamentVariations(p.id).then((vars) => setFilamentVariations(vars || [])).catch(() => {})
+        }
         const catIds = Array.isArray(p.categoryIds) && p.categoryIds.length > 0
           ? p.categoryIds
           : p.category?.id
@@ -79,6 +89,40 @@ export default function AdminProductForm() {
       })
     }
   }, [id])
+
+  const addFilamentVariation = () => {
+    if (!selectedFilamentToAdd) return
+    const fil = allFilaments.find((f) => f.id === selectedFilamentToAdd)
+    if (!fil) return
+    if (filamentVariations.some((v) => (v.filamentId || v.filament_id) === fil.id)) {
+      alert('This filament variation is already assigned to this product.')
+      return
+    }
+    setFilamentVariations((prev) => [
+      ...prev,
+      {
+        filamentId: fil.id,
+        priceAdjustment: 0,
+        isAvailable: true,
+        filament: fil,
+      },
+    ])
+    setSelectedFilamentToAdd('')
+  }
+
+  const removeFilamentVariation = (targetFilamentId) => {
+    setFilamentVariations((prev) =>
+      prev.filter((v) => (v.filamentId || v.filament_id) !== targetFilamentId)
+    )
+  }
+
+  const updateFilamentVariation = (targetFilamentId, field, val) => {
+    setFilamentVariations((prev) =>
+      prev.map((v) =>
+        (v.filamentId || v.filament_id) === targetFilamentId ? { ...v, [field]: val } : v
+      )
+    )
+  }
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
@@ -118,7 +162,11 @@ export default function AdminProductForm() {
               : ['Black', 'White'],
           })),
       }
-      await api.adminSaveProduct(payload, id)
+      const savedRes = await api.adminSaveProduct(payload, id)
+      const targetId = savedRes?.id || savedRes?.product?.id || form?.id || id
+      if (targetId) {
+        await api.adminSaveProductFilamentVariations(targetId, filamentVariations)
+      }
       navigate(`${adminBase}/products`)
     } catch (ex) {
       setErr(ex.message)
@@ -546,6 +594,136 @@ export default function AdminProductForm() {
             + Add Component / Part
           </button>
         </div>
+      </div>
+
+      {/* ── FILAMENT VARIATIONS SECTION ── */}
+      <div className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-[#c5a059] font-bold flex items-center gap-2">
+              <Disc size={15} /> Filament Variations
+            </div>
+            <p className="text-[11px] text-white/50 mt-0.5">
+              Assign available filament inventory records as selectable variations for this product.
+            </p>
+          </div>
+          <Link
+            to={`${adminBase}/filaments`}
+            target="_blank"
+            className="text-[11px] text-white/40 hover:text-[#c5a059] underline self-start sm:self-auto"
+          >
+            Manage Filament Inventory →
+          </Link>
+        </div>
+
+        {/* Add from inventory dropdown */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <select
+            value={selectedFilamentToAdd}
+            onChange={(e) => setSelectedFilamentToAdd(e.target.value)}
+            className="field-input h-9 flex-1 min-w-[240px] bg-black text-xs text-white border-white/20"
+          >
+            <option value="">-- Choose filament from inventory to assign --</option>
+            {allFilaments.map((f) => {
+              const already = filamentVariations.some((v) => (v.filamentId || v.filament_id) === f.id)
+              return (
+                <option key={f.id} value={f.id} disabled={already}>
+                  {f.material} - {f.colorName} ({f.diameter}mm, {f.weightGrams >= 1000 ? `${f.weightGrams / 1000}kg` : `${f.weightGrams}g`}) - {f.stockSpools} spools in stock {already ? '(Assigned)' : ''}
+                </option>
+              )
+            })}
+          </select>
+          <button
+            type="button"
+            onClick={addFilamentVariation}
+            disabled={!selectedFilamentToAdd}
+            className="inline-flex items-center gap-1.5 rounded-md bg-[#c5a059] px-3.5 py-2 text-xs font-semibold text-black hover:bg-[#d4b069] disabled:opacity-40 transition-colors"
+          >
+            <Plus size={14} /> Assign Filament
+          </button>
+        </div>
+
+        {/* Variations List */}
+        {filamentVariations.length === 0 ? (
+          <div className="rounded-md border border-dashed border-white/10 p-5 text-center text-xs text-white/40">
+            No filament variations assigned yet. Select a filament above to assign it to this product, or leave empty if this product does not have filament options.
+          </div>
+        ) : (
+          <div className="space-y-2.5 pt-1">
+            {filamentVariations.map((v) => {
+              const filId = v.filamentId || v.filament_id
+              const fil = v.filament || allFilaments.find((f) => f.id === filId)
+              return (
+                <div
+                  key={filId}
+                  className="rounded-lg border border-white/10 bg-black/40 p-3 flex flex-col md:flex-row md:items-center justify-between gap-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="h-5 w-5 rounded-full border border-white/20 shrink-0 shadow-inner"
+                      style={{ backgroundColor: fil?.colorHex || '#000000' }}
+                    />
+                    <div>
+                      <div className="text-xs font-semibold text-white flex items-center gap-2">
+                        <span>{fil?.name || 'Filament'}</span>
+                        <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-mono text-[#c5a059]">
+                          {fil?.material}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-white/50 flex flex-wrap items-center gap-2 mt-0.5">
+                        <span>Color: <strong>{fil?.colorName}</strong></span>
+                        <span>•</span>
+                        <span>{fil?.diameter} mm</span>
+                        <span>•</span>
+                        <span>{fil?.weightGrams >= 1000 ? `${fil.weightGrams / 1000} kg` : `${fil.weightGrams} g`}</span>
+                        <span>•</span>
+                        <span className={fil?.stockSpools > 0 ? 'text-emerald-400 font-medium' : 'text-red-400 font-medium'}>
+                          {fil?.stockSpools > 0 ? `${fil?.stockSpools} spools in stock` : 'Out of stock'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 self-end md:self-auto">
+                    <div className="flex items-center gap-1.5 text-xs text-white/70">
+                      <span className="text-[11px] text-white/40">Price Adj:</span>
+                      <div className="relative">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-white/40 text-xs">₹</span>
+                        <input
+                          type="number"
+                          step="10"
+                          value={v.priceAdjustment}
+                          onChange={(e) => updateFilamentVariation(filId, 'priceAdjustment', Number(e.target.value))}
+                          className="field-input h-8 w-24 pl-5 pr-2 text-xs bg-black text-white border-white/15"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+
+                    <label className="flex items-center gap-1.5 text-xs text-white/70 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={v.isAvailable}
+                        onChange={(e) => updateFilamentVariation(filId, 'isAvailable', e.target.checked)}
+                        className="rounded border-white/20 bg-black text-[#c5a059] focus:ring-[#c5a059]"
+                      />
+                      <span>Active</span>
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => removeFilamentVariation(filId)}
+                      className="rounded border border-red-500/20 bg-red-500/10 p-1.5 text-xs text-red-400 hover:bg-red-500/20"
+                      title="Remove variation"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {err && <p className="text-red-400">{err}</p>}

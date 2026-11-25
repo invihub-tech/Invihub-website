@@ -323,7 +323,26 @@ export default function CheckoutPage() {
                     <span className="w-5 h-5 rounded bg-slate-100 text-slate-700 font-bold text-[10px] flex items-center justify-center shrink-0">
                       {i.quantity}×
                     </span>
-                    <span className="font-medium text-slate-800 line-clamp-1">{i.name}</span>
+                    <div>
+                      <span className="font-medium text-slate-800 line-clamp-1">{i.name}</span>
+                      {(() => {
+                        let itemVar = null
+                        try {
+                          const vars = JSON.parse(localStorage.getItem('invihub_cart_variations') || '{}')
+                          itemVar = vars[i.productId || i.product?.id || i.id]
+                        } catch (_) {}
+                        if (!itemVar) return null
+                        return (
+                          <div className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
+                            <span
+                              className="w-2 h-2 rounded-full border border-slate-300 inline-block"
+                              style={{ backgroundColor: itemVar.colorHex || '#000000' }}
+                            />
+                            <span>{itemVar.material} · {itemVar.colorName}</span>
+                          </div>
+                        )
+                      })()}
+                    </div>
                   </div>
                   <span className="font-bold text-slate-900 shrink-0">
                     {inr(i.lineTotal || i.unitPrice * i.quantity)}

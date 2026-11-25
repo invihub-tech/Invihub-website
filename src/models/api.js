@@ -115,6 +115,37 @@ function mapCoupon(c) {
   }
 }
 
+function mapFilament(f) {
+  if (!f) return null
+  const stockSpools = Number(f.stock_spools || 0)
+  const weightGrams = Number(f.weight_grams || 1000)
+  const lowThreshold = Number(f.low_stock_threshold || 5)
+  let status = 'HEALTHY'
+  if (stockSpools <= 0) status = 'OUT_OF_STOCK'
+  else if (stockSpools <= lowThreshold) status = 'LOW_STOCK'
+
+  return {
+    id: f.id,
+    name: f.name,
+    material: f.material,
+    colorName: f.color_name,
+    colorHex: f.color_hex || '#000000',
+    diameter: Number(f.diameter || 1.75),
+    weightGrams,
+    stockSpools,
+    totalWeightKg: Math.round(((stockSpools * weightGrams) / 1000) * 100) / 100,
+    sku: f.sku || '',
+    supplier: f.supplier || '',
+    costPerSpool: Number(f.cost_per_spool || 0),
+    lowStockThreshold: lowThreshold,
+    notes: f.notes || '',
+    isActive: Boolean(f.is_active),
+    status,
+    createdAt: f.created_at,
+    updatedAt: f.updated_at,
+  }
+}
+
 function calculateCouponDiscount(coupon, items, subtotal) {
   if (!coupon) return 0
   let eligibleSubtotal = 0
@@ -152,70 +183,127 @@ function calculateCouponDiscount(coupon, items, subtotal) {
   return discount
 }
 
+async function resolveProductId(productIdOrSlug) {
+  if (!productIdOrSlug) return null
+  const str = String(productIdOrSlug).trim()
+  if (!supabase) return str
+  // If it is already a UUID: 8-4-4-4-12 hex chars
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)) {
+    return str
+  }
+
+  // Look up by slug first
+  try {
+    const { data: p } = await supabase
+      .from('products')
+      .select('id')
+      .eq('slug', str)
+      .maybeSingle()
+    if (p?.id) return p.id
+  } catch (_) {}
+
+  // Look up by id (e.g. text-based IDs like seed_prod_arm)
+  try {
+    const { data: p2 } = await supabase
+      .from('products')
+      .select('id')
+      .eq('id', str)
+      .maybeSingle()
+    if (p2?.id) return p2.id
+  } catch (_) {}
+
+  return str
+}
+
 export const api = {
   health: () => edge('/health'),
   categories: () => edge('/categories'),
   products: (params = {}) => edge(`/products?${new URLSearchParams(params)}`),
   product: (slug) => edge(`/products/${encodeURIComponent(slug)}`),
   productReviews: async (slug) => {
-    try {
-      return await edge(`/products/${encodeURIComponent(slug)}/reviews`)
-    } catch (err) {
-      if (supabase) {
-        try {
-          const { data: p } = await supabase
-            .from('products')
-            .select('id, name, slug')
-            .or(`slug.eq.${slug},id.eq.${slug}`)
-            .maybeSingle()
-          if (p) {
-            const { data: reviews } = await supabase
-              .from('product_reviews')
-              .select('id, product_id, customer_name, rating, title, comment, verified_purchase, created_at, updated_at')
-              .eq('product_id', p.id)
-              .eq('status', 'APPROVED')
-              .order('created_at', { ascending: false })
-            const list = reviews || []
-            const totalCount = list.length
-            const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
-            let sum = 0
-            for (const r of list) {
-              const stars = Math.min(5, Math.max(1, Number(r.rating) || 1))
-              distribution[stars] = (distribution[stars] || 0) + 1
-              sum += stars
-            }
-            const average = totalCount > 0 ? Math.round((sum / totalCount) * 10) / 10 : 0
-            const percentages = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
-            if (totalCount > 0) {
-              for (let s = 1; s <= 5; s++) {
-                percentages[s] = Math.round(((distribution[s] || 0) / totalCount) * 100)
-              }
-            }
-            return {
-              ok: true,
-              productId: p.id,
-              summary: { average, totalCount, distribution, percentages },
-              reviews: list.map((r) => ({
-                id: r.id,
-                customerName: r.customer_name,
-                rating: r.rating,
-                comment: r.comment,
-                verifiedPurchase: r.verified_purchase,
-                createdAt: r.created_at,
-              })),
+    if (supabase) {
+      try {
+        const { data: p } = await supabase
+          .from('products')
+          .select('id, name, slug')
+          .or(`slug.eq.${slug},id.eq.${slug}`)
+          .maybeSingle()
+        if (p) {
+          const { data: reviews } = await supabase
+            .from('product_reviews')
+            .select('id, product_id, customer_name, rating, title, comment, verified_purchase, created_at, updated_at')
+            .eq('product_id', p.id)
+            .eq('status', 'APPROVED')
+            .order('created_at', { ascending: false })
+          const list = reviews || []
+          const totalCount = list.length
+          const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+          let sum = 0
+          for (const r of list) {
+            const stars = Math.min(5, Math.max(1, Number(r.rating) || 1))
+            distribution[stars] = (distribution[stars] || 0) + 1
+            sum += stars
+          }
+          const average = totalCount > 0 ? Math.round((sum / totalCount) * 10) / 10 : 0
+          const percentages = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+          if (totalCount > 0) {
+            for (let s = 1; s <= 5; s++) {
+              percentages[s] = Math.round(((distribution[s] || 0) / totalCount) * 100)
             }
           }
-        } catch (_) {}
-      }
-      return {
-        ok: true,
-        summary: { average: 0, totalCount: 0, distribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }, percentages: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } },
-        reviews: [],
-      }
+          return {
+            ok: true,
+            productId: p.id,
+            summary: { average, totalCount, distribution, percentages },
+            reviews: list.map((r) => ({
+              id: r.id,
+              customerName: r.customer_name,
+              rating: r.rating,
+              title: r.title || '',
+              comment: r.comment,
+              verifiedPurchase: r.verified_purchase,
+              createdAt: r.created_at,
+            })),
+          }
+        }
+      } catch (_) {}
+    }
+    return {
+      ok: true,
+      summary: { average: 0, totalCount: 0, distribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }, percentages: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } },
+      reviews: [],
     }
   },
-  submitProductReview: (slug, body) =>
-    edge(`/products/${encodeURIComponent(slug)}/reviews`, { method: 'POST', body }),
+  submitProductReview: async (slug, body) => {
+    if (supabase) {
+      const { data: p } = await supabase
+        .from('products')
+        .select('id')
+        .or(`slug.eq.${slug},id.eq.${slug}`)
+        .maybeSingle()
+      if (!p) throw new ApiError('Product not found', 404)
+
+      const payload = {
+        product_id: p.id,
+        customer_name: String(body.customerName || body.name || '').trim(),
+        customer_email: String(body.customerEmail || body.email || '').trim().toLowerCase(),
+        rating: Math.min(5, Math.max(1, Number(body.rating) || 5)),
+        title: String(body.title || '').trim(),
+        comment: String(body.comment || '').trim(),
+        status: 'PENDING',
+        verified_purchase: Boolean(body.verifiedPurchase),
+      }
+
+      const { data, error } = await supabase
+        .from('product_reviews')
+        .upsert(payload, { onConflict: 'product_id,customer_email' })
+        .select()
+        .single()
+      if (error) throw new ApiError(error.message, 400)
+      return { ok: true, review: data }
+    }
+    return await edge(`/products/${encodeURIComponent(slug)}/reviews`, { method: 'POST', body })
+  },
   search: (q) => edge(`/search?q=${encodeURIComponent(q)}`),
   settings: () => edge('/settings'),
 
@@ -341,6 +429,60 @@ export const api = {
     try {
       localStorage.removeItem('invihub_applied_coupon')
     } catch (_) {}
+
+    // Deduct filament variation stock if applicable
+    if (result?.orderId && supabase) {
+      try {
+        const storedVars = JSON.parse(localStorage.getItem('invihub_cart_variations') || '{}')
+        const { data: orderItems } = await supabase
+          .from('order_items')
+          .select('id, product_id, quantity')
+          .eq('order_id', result.orderId)
+
+        for (const item of (orderItems || [])) {
+          const variation = storedVars[item.product_id]
+          if (variation?.filamentId) {
+            const qty = Number(item.quantity) || 1
+            // Fetch current stock
+            const { data: fil } = await supabase
+              .from('filaments')
+              .select('stock_spools')
+              .eq('id', variation.filamentId)
+              .single()
+
+            if (fil) {
+              const currentStock = Number(fil.stock_spools || 0)
+              const newStock = Math.max(0, currentStock - qty)
+              await supabase
+                .from('filaments')
+                .update({ stock_spools: newStock, updated_at: new Date().toISOString() })
+                .eq('id', variation.filamentId)
+
+              await supabase.from('filament_movements').insert({
+                filament_id: variation.filamentId,
+                delta_spools: -qty,
+                resulting_stock: newStock,
+                reason: 'order_deduct',
+                notes: `Deducted for confirmed order #${result.orderNumber || result.orderId}`,
+                order_id: String(result.orderId),
+              })
+
+              await supabase
+                .from('order_items')
+                .update({
+                  filament_id: variation.filamentId,
+                  variation_details_json: JSON.stringify(variation),
+                })
+                .eq('id', item.id)
+            }
+          }
+        }
+        localStorage.removeItem('invihub_cart_variations')
+      } catch (err) {
+        console.error('Non-blocking filament stock deduction error:', err)
+      }
+    }
+
     return rememberAccess(result, payload?.email)
   },
   confirmPay: (orderId) => edge('/checkout/confirm', { method: 'POST', body: { orderId } }),
@@ -417,8 +559,16 @@ export const api = {
   customerMe: async () => {
     if (supabase) {
       try {
-        const { data } = await supabase.auth.getSession()
-        if (!data?.session?.access_token) return null
+        const { data: sessData } = await supabase.auth.getSession()
+        const user = sessData?.session?.user
+        if (!user) return null
+        const { data: cust } = await supabase
+          .from('customers')
+          .select('id, name, email, phone')
+          .eq('id', user.id)
+          .maybeSingle()
+        if (!cust) return null
+        return { customer: cust, ...cust }
       } catch {
         return null
       }
@@ -525,8 +675,141 @@ export const api = {
   adminDeleteProductImage: (productId, body) =>
     edge(`/admin/products/${productId}/images`, { method: 'DELETE', body }),
   adminOrders: () => edge('/admin/orders'),
-  adminOrder: (id) => edge(`/admin/orders/${id}`),
-  adminUpdateOrder: (id, body) => edge(`/admin/orders/${id}`, { method: 'PUT', body }),
+  adminOrder: async (id) => {
+    try {
+      const res = await edge(`/admin/orders/${id}`)
+      if (supabase && res?.items) {
+        try {
+          const { data: dbItems } = await supabase
+            .from('order_items')
+            .select('id, filament_id, variation_details_json')
+            .eq('order_id', res.id || id)
+          if (dbItems && dbItems.length > 0) {
+            const map = new Map(dbItems.map((di) => [di.id, di]))
+            res.items = res.items.map((it) => {
+              const extra = map.get(it.id)
+              let details = null
+              try {
+                details = extra?.variation_details_json ? JSON.parse(extra.variation_details_json) : null
+              } catch (_) {}
+              return { ...it, filamentId: extra?.filament_id, variationDetails: details }
+            })
+          }
+        } catch (_) {}
+      }
+      return res
+    } catch (err) {
+      if (supabase) {
+        const { data: o, error } = await supabase
+          .from('orders')
+          .select('*, customers(*), order_items(*), payments(*)')
+          .or(`id.eq.${id},order_number.eq.${id}`)
+          .maybeSingle()
+        if (error) throw new ApiError(error.message, 400)
+        if (!o) throw new ApiError('Order not found', 404)
+        return {
+          id: o.id,
+          orderNumber: o.order_number,
+          total: o.total,
+          paymentStatus: o.payment_status,
+          orderStatus: o.order_status,
+          shippingName: o.shipping_name,
+          shippingEmail: o.shipping_email,
+          shippingPhone: o.shipping_phone,
+          shippingLine1: o.shipping_line1,
+          shippingLine2: o.shipping_line2,
+          shippingCity: o.shipping_city,
+          shippingState: o.shipping_state,
+          shippingPin: o.shipping_pin,
+          items: (o.order_items || []).map((i) => ({
+            id: i.id,
+            productId: i.product_id,
+            name: i.name,
+            sku: i.sku,
+            quantity: i.quantity,
+            unitPrice: i.unit_price,
+            lineTotal: i.line_total,
+            filamentId: i.filament_id,
+            variationDetails: i.variation_details_json ? JSON.parse(i.variation_details_json) : null,
+          })),
+          payments: o.payments || [],
+          customer: o.customers,
+        }
+      }
+      throw err
+    }
+  },
+  adminUpdateOrder: async (id, body) => {
+    let res
+    try {
+      res = await edge(`/admin/orders/${id}`, { method: 'PUT', body })
+    } catch (err) {
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('orders')
+          .update({ order_status: body.orderStatus, updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .select('*')
+          .single()
+        if (error) throw new ApiError(error.message, 400)
+        res = data
+      } else {
+        throw err
+      }
+    }
+
+    // If order was cancelled or refunded, restore any associated filament variations
+    if (supabase && (body.orderStatus === 'CANCELLED' || body.orderStatus === 'REFUNDED')) {
+      try {
+        const { data: items } = await supabase
+          .from('order_items')
+          .select('id, filament_id, quantity')
+          .eq('order_id', id)
+          .not('filament_id', 'is', null)
+
+        for (const it of (items || [])) {
+          if (it.filament_id && it.quantity > 0) {
+            // Check if already restored for this order
+            const { data: existingRestores } = await supabase
+              .from('filament_movements')
+              .select('id')
+              .eq('order_id', String(id))
+              .eq('filament_id', it.filament_id)
+              .eq('reason', 'order_restore')
+
+            if (!existingRestores || existingRestores.length === 0) {
+              const { data: fil } = await supabase
+                .from('filaments')
+                .select('stock_spools')
+                .eq('id', it.filament_id)
+                .single()
+
+              if (fil) {
+                const newStock = Number(fil.stock_spools || 0) + Number(it.quantity)
+                await supabase
+                  .from('filaments')
+                  .update({ stock_spools: newStock, updated_at: new Date().toISOString() })
+                  .eq('id', it.filament_id)
+
+                await supabase.from('filament_movements').insert({
+                  filament_id: it.filament_id,
+                  delta_spools: Number(it.quantity),
+                  resulting_stock: newStock,
+                  reason: 'order_restore',
+                  notes: `Restored from cancelled/refunded order #${id}`,
+                  order_id: String(id),
+                })
+              }
+            }
+          }
+        }
+      } catch (restoreErr) {
+        console.error('Non-blocking filament restore error:', restoreErr)
+      }
+    }
+
+    return res
+  },
   adminInventory: (params = {}) => edge(`/admin/inventory?${new URLSearchParams(params)}`),
   adminInventoryHistory: (id) => edge(`/admin/inventory/${id}/history`),
   adminAdjustStock: (id, delta, reason, notes = '') =>
@@ -555,10 +838,101 @@ export const api = {
     edge('/admin/inventory/cleanup-expired', { method: 'POST', body: { timeoutMinutes } }),
 
   // Admin Product Reviews
-  adminReviews: (params = {}) => edge(`/admin/reviews?${new URLSearchParams(params)}`),
-  adminApproveReview: (id) => edge(`/admin/reviews/${id}/approve`, { method: 'POST', body: {} }),
-  adminRejectReview: (id) => edge(`/admin/reviews/${id}/reject`, { method: 'POST', body: {} }),
-  adminDeleteReview: (id) => edge(`/admin/reviews/${id}`, { method: 'DELETE' }),
+  adminReviews: async (params = {}) => {
+    if (supabase) {
+      let query = supabase
+        .from('product_reviews')
+        .select('*, product:products(id, name, slug, sku)')
+        .order('created_at', { ascending: false })
+
+      if (params.status && params.status !== 'ALL') {
+        query = query.eq('status', params.status)
+      }
+      if (params.productId && params.productId !== 'ALL') {
+        query = query.eq('product_id', params.productId)
+      }
+      if (params.rating && params.rating !== 'ALL') {
+        query = query.eq('rating', Number(params.rating))
+      }
+
+      const { data: rows, error: revErr } = await query
+      if (revErr) throw new ApiError(revErr.message, 400)
+
+      const list = (rows || []).map((r) => ({
+        id: r.id,
+        productId: r.product_id,
+        product: r.product ? { id: r.product.id, name: r.product.name, slug: r.product.slug, sku: r.product.sku } : null,
+        customerId: r.customer_id,
+        customerName: r.customer_name,
+        customerEmail: r.customer_email,
+        rating: r.rating,
+        title: r.title || '',
+        comment: r.comment,
+        status: r.status,
+        verifiedPurchase: Boolean(r.verified_purchase),
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+      }))
+
+      // Overall stats
+      const { data: allReviews } = await supabase.from('product_reviews').select('rating, status')
+      const allList = allReviews || []
+      const total = allList.length
+      const pending = allList.filter((r) => r.status === 'PENDING').length
+      const approved = allList.filter((r) => r.status === 'APPROVED').length
+      const rejected = allList.filter((r) => r.status === 'REJECTED').length
+      const approvedRatings = allList.filter((r) => r.status === 'APPROVED').map((r) => Number(r.rating) || 0)
+      const avg = approvedRatings.length > 0
+        ? Math.round((approvedRatings.reduce((a, b) => a + b, 0) / approvedRatings.length) * 10) / 10
+        : 0
+
+      return {
+        reviews: list,
+        stats: {
+          total,
+          pending,
+          approved,
+          rejected,
+          averageRating: avg,
+        },
+      }
+    }
+    return await edge(`/admin/reviews?${new URLSearchParams(params)}`)
+  },
+  adminApproveReview: async (id) => {
+    if (supabase) {
+      const { data: updated, error } = await supabase
+        .from('product_reviews')
+        .update({ status: 'APPROVED', updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select('*, product:products(id, name, slug, sku)')
+        .single()
+      if (error) throw new ApiError(error.message, 400)
+      return { ok: true, review: updated }
+    }
+    return await edge(`/admin/reviews/${id}/approve`, { method: 'POST', body: {} })
+  },
+  adminRejectReview: async (id) => {
+    if (supabase) {
+      const { data: updated, error } = await supabase
+        .from('product_reviews')
+        .update({ status: 'REJECTED', updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select('*, product:products(id, name, slug, sku)')
+        .single()
+      if (error) throw new ApiError(error.message, 400)
+      return { ok: true, review: updated }
+    }
+    return await edge(`/admin/reviews/${id}/reject`, { method: 'POST', body: {} })
+  },
+  adminDeleteReview: async (id) => {
+    if (supabase) {
+      const { error } = await supabase.from('product_reviews').delete().eq('id', id)
+      if (error) throw new ApiError(error.message, 400)
+      return { ok: true, deleted: true, id }
+    }
+    return await edge(`/admin/reviews/${id}`, { method: 'DELETE' })
+  },
 
   // Admin Discount Coupons
   adminCoupons: async (params = {}) => {
@@ -652,6 +1026,305 @@ export const api = {
       return { ok: true, deleted: true, id }
     }
     return await edge(`/admin/coupons/${id}`, { method: 'DELETE' })
+  },
+
+  // ── Filament Inventory & Product Variations ──────────────────────────────
+  adminFilaments: async (params = {}) => {
+    if (supabase) {
+      const { data: allRows, error: allErr } = await supabase
+        .from('filaments')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (allErr) throw new ApiError(allErr.message, 400)
+
+      const all = (allRows || []).map(mapFilament)
+
+      // Compute inventory KPI summary
+      const totalTypes = all.length
+      const totalSpools = all.reduce((sum, f) => sum + (f.stockSpools || 0), 0)
+      const totalWeightKg = Math.round(all.reduce((sum, f) => sum + ((f.stockSpools * f.weightGrams) / 1000), 0) * 10) / 10
+      const lowStockCount = all.filter((f) => f.status === 'LOW_STOCK').length
+      const outOfStockCount = all.filter((f) => f.status === 'OUT_OF_STOCK').length
+
+      let filtered = all
+      if (params.material && params.material !== 'ALL') {
+        filtered = filtered.filter((f) => String(f.material || '').toUpperCase() === String(params.material).toUpperCase())
+      }
+      if (params.status && params.status !== 'ALL') {
+        filtered = filtered.filter((f) => f.status === params.status)
+      }
+      if (params.q) {
+        const query = String(params.q).toLowerCase().trim()
+        filtered = filtered.filter(
+          (f) =>
+            f.name.toLowerCase().includes(query) ||
+            f.material.toLowerCase().includes(query) ||
+            f.colorName.toLowerCase().includes(query) ||
+            f.sku.toLowerCase().includes(query) ||
+            f.supplier.toLowerCase().includes(query)
+        )
+      }
+
+      return {
+        filaments: filtered,
+        summary: {
+          totalTypes,
+          totalSpools,
+          totalWeightKg,
+          lowStockCount,
+          outOfStockCount,
+        },
+      }
+    }
+    return await edge(`/admin/filaments?${new URLSearchParams(params)}`)
+  },
+
+  adminFilament: async (id) => {
+    if (supabase) {
+      const { data, error } = await supabase.from('filaments').select('*').eq('id', id).maybeSingle()
+      if (error) throw new ApiError(error.message, 400)
+      if (!data) throw new ApiError('Filament not found', 404)
+      return { filament: mapFilament(data) }
+    }
+    return await edge(`/admin/filaments/${id}`)
+  },
+
+  adminCreateFilament: async (body) => {
+    if (supabase) {
+      const initialStock = Math.max(0, parseInt(body.stockSpools, 10) || 0)
+      const payload = {
+        name: String(body.name || '').trim(),
+        material: String(body.material || 'PLA').trim().toUpperCase(),
+        color_name: String(body.colorName || '').trim(),
+        color_hex: String(body.colorHex || '#000000').trim(),
+        diameter: Number(body.diameter || 1.75),
+        weight_grams: Number(body.weightGrams || 1000),
+        stock_spools: initialStock,
+        sku: body.sku ? String(body.sku).trim().toUpperCase() : `FIL-${Date.now().toString(36).toUpperCase()}`,
+        supplier: body.supplier ? String(body.supplier).trim() : null,
+        cost_per_spool: Number(body.costPerSpool || 0),
+        low_stock_threshold: Math.max(1, parseInt(body.lowStockThreshold, 10) || 5),
+        notes: body.notes ? String(body.notes).trim() : null,
+        is_active: body.isActive !== false,
+      }
+
+      const { data, error } = await supabase.from('filaments').insert(payload).select().single()
+      if (error) throw new ApiError(error.message, 400)
+
+      if (initialStock > 0) {
+        try {
+          await supabase.from('filament_movements').insert({
+            filament_id: data.id,
+            delta_spools: initialStock,
+            resulting_stock: initialStock,
+            reason: 'received',
+            notes: 'Initial stock entry on creation',
+          })
+        } catch (_) {}
+      }
+
+      return { ok: true, filament: mapFilament(data) }
+    }
+    return await edge('/admin/filaments', { method: 'POST', body })
+  },
+
+  adminUpdateFilament: async (id, body) => {
+    if (supabase) {
+      const payload = {
+        name: String(body.name || '').trim(),
+        material: String(body.material || 'PLA').trim().toUpperCase(),
+        color_name: String(body.colorName || '').trim(),
+        color_hex: String(body.colorHex || '#000000').trim(),
+        diameter: Number(body.diameter || 1.75),
+        weight_grams: Number(body.weightGrams || 1000),
+        sku: body.sku ? String(body.sku).trim().toUpperCase() : null,
+        supplier: body.supplier ? String(body.supplier).trim() : null,
+        cost_per_spool: Number(body.costPerSpool || 0),
+        low_stock_threshold: Math.max(1, parseInt(body.lowStockThreshold, 10) || 5),
+        notes: body.notes ? String(body.notes).trim() : null,
+        is_active: body.isActive !== false,
+        updated_at: new Date().toISOString(),
+      }
+
+      const { data, error } = await supabase.from('filaments').update(payload).eq('id', id).select().single()
+      if (error) throw new ApiError(error.message, 400)
+      return { ok: true, filament: mapFilament(data) }
+    }
+    return await edge(`/admin/filaments/${id}`, { method: 'PUT', body })
+  },
+
+  adminAdjustFilamentStock: async (id, delta, reason = 'adjustment', notes = '', orderId = null) => {
+    if (supabase) {
+      const deltaSpools = parseInt(delta, 10) || 0
+      if (deltaSpools === 0) throw new ApiError('Adjustment delta cannot be zero', 400)
+
+      const { data: current, error: getErr } = await supabase.from('filaments').select('*').eq('id', id).single()
+      if (getErr || !current) throw new ApiError('Filament not found', 404)
+
+      const newStock = Number(current.stock_spools || 0) + deltaSpools
+      if (newStock < 0) {
+        throw new ApiError(`Cannot adjust stock below 0. Current stock is ${current.stock_spools} spools.`, 400)
+      }
+
+      const { data: updated, error: updErr } = await supabase
+        .from('filaments')
+        .update({ stock_spools: newStock, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single()
+      if (updErr) throw new ApiError(updErr.message, 400)
+
+      await supabase.from('filament_movements').insert({
+        filament_id: id,
+        delta_spools: deltaSpools,
+        resulting_stock: newStock,
+        reason: String(reason || 'adjustment'),
+        notes: String(notes || ''),
+        order_id: orderId ? String(orderId) : null,
+      })
+
+      return { ok: true, newStock, filament: mapFilament(updated) }
+    }
+    return await edge(`/admin/filaments/${id}/adjust`, { method: 'POST', body: { delta, reason, notes, orderId } })
+  },
+
+  adminFilamentHistory: async (filamentId) => {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('filament_movements')
+        .select('*')
+        .eq('filament_id', filamentId)
+        .order('created_at', { ascending: false })
+        .limit(100)
+
+      if (error) throw new ApiError(error.message, 400)
+
+      const movements = (data || []).map((m) => ({
+        id: m.id,
+        filamentId: m.filament_id,
+        deltaSpools: m.delta_spools,
+        resultingStock: m.resulting_stock,
+        reason: m.reason,
+        notes: m.notes || '',
+        orderId: m.order_id || null,
+        createdAt: m.created_at,
+      }))
+
+      return { movements }
+    }
+    return await edge(`/admin/filaments/${filamentId}/history`)
+  },
+
+  adminDeleteFilament: async (id) => {
+    if (supabase) {
+      const { error } = await supabase.from('filaments').delete().eq('id', id)
+      if (error) throw new ApiError(error.message, 400)
+      return { ok: true, deleted: true, id }
+    }
+    return await edge(`/admin/filaments/${id}`, { method: 'DELETE' })
+  },
+
+  adminProductFilamentVariations: async (productIdOrSlug) => {
+    if (supabase) {
+      const productId = await resolveProductId(productIdOrSlug)
+      if (!productId) return []
+
+      const { data, error } = await supabase
+        .from('product_filament_variations')
+        .select('*, filament:filaments(*)')
+        .eq('product_id', productId)
+        .order('created_at', { ascending: true })
+
+      if (error) throw new ApiError(error.message, 400)
+
+      return (data || []).map((pv) => ({
+        id: pv.id,
+        productId: pv.product_id,
+        filamentId: pv.filament_id,
+        priceAdjustment: Number(pv.price_adjustment || 0),
+        isAvailable: Boolean(pv.is_available),
+        filament: mapFilament(pv.filament),
+      }))
+    }
+    return await edge(`/admin/products/${productIdOrSlug}/filaments`)
+  },
+
+  adminSaveProductFilamentVariations: async (productIdOrSlug, variations = []) => {
+    if (supabase) {
+      const productId = await resolveProductId(productIdOrSlug)
+      if (!productId) throw new ApiError('Product not found to save variations', 400)
+
+      // 1. Deduplicate by filament_id to guarantee no duplicate keys in the batch
+      const uniqueMap = new Map()
+      for (const v of (variations || [])) {
+        const filId = v.filamentId || v.filament_id
+        if (filId) {
+          uniqueMap.set(filId, {
+            product_id: productId,
+            filament_id: filId,
+            price_adjustment: Number(v.priceAdjustment || v.price_adjustment || 0),
+            is_available: v.isAvailable !== false,
+          })
+        }
+      }
+      const rows = Array.from(uniqueMap.values())
+      const activeFilamentIds = rows.map((r) => r.filament_id)
+
+      // 2. Clear out any variations for this product that are no longer assigned
+      try {
+        if (activeFilamentIds.length > 0) {
+          await supabase
+            .from('product_filament_variations')
+            .delete()
+            .eq('product_id', productId)
+            .not('filament_id', 'in', `(${activeFilamentIds.join(',')})`)
+        } else {
+          await supabase
+            .from('product_filament_variations')
+            .delete()
+            .eq('product_id', productId)
+        }
+      } catch (_) {}
+
+      // 3. Upsert with onConflict so existing keys update cleanly without 409 Conflict
+      if (rows.length > 0) {
+        const { error } = await supabase
+          .from('product_filament_variations')
+          .upsert(rows, { onConflict: 'product_id,filament_id' })
+        if (error) throw new ApiError(error.message, 400)
+      }
+      return { ok: true }
+    }
+    return await edge(`/admin/products/${productIdOrSlug}/filaments`, { method: 'PUT', body: { variations } })
+  },
+
+  productFilamentVariations: async (productIdOrSlug) => {
+    if (supabase) {
+      const productId = await resolveProductId(productIdOrSlug)
+      if (!productId) return []
+
+      const { data, error } = await supabase
+        .from('product_filament_variations')
+        .select('*, filament:filaments(*)')
+        .eq('product_id', productId)
+        .eq('is_available', true)
+        .order('created_at', { ascending: true })
+
+      if (error) return []
+
+      return (data || [])
+        .filter((pv) => pv.filament && pv.filament.is_active)
+        .map((pv) => ({
+          id: pv.id,
+          productId: pv.product_id,
+          filamentId: pv.filament_id,
+          priceAdjustment: Number(pv.price_adjustment || 0),
+          isAvailable: Boolean(pv.is_available),
+          filament: mapFilament(pv.filament),
+        }))
+    }
+    return await edge(`/products/${encodeURIComponent(productIdOrSlug)}/filaments`).catch(() => [])
   },
 
   upload: async (file) => {

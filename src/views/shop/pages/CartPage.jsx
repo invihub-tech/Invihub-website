@@ -208,6 +208,26 @@ export default function CartPage() {
                       >
                         {name}
                       </Link>
+                      {(() => {
+                        let itemVar = null
+                        try {
+                          const vars = JSON.parse(localStorage.getItem('invihub_cart_variations') || '{}')
+                          itemVar = vars[item.productId || product.id]
+                        } catch (_) {}
+                        if (!itemVar) return null
+                        return (
+                          <div className="flex items-center gap-1.5 text-xs text-slate-600 mt-1">
+                            <span
+                              className="inline-block w-2.5 h-2.5 rounded-full border border-slate-300 shadow-inner shrink-0"
+                              style={{ backgroundColor: itemVar.colorHex || '#000000' }}
+                            />
+                            <span className="font-semibold text-slate-800">{itemVar.material} · {itemVar.colorName}</span>
+                            <span className="text-slate-400">
+                              ({itemVar.diameter}mm, {itemVar.weightGrams >= 1000 ? `${itemVar.weightGrams / 1000}kg` : `${itemVar.weightGrams}g`})
+                            </span>
+                          </div>
+                        )
+                      })()}
                       <div className="text-xs text-slate-500 mt-0.5">
                         Unit Price: <span className="font-semibold text-slate-800">{inr(unitPrice)}</span>
                       </div>

@@ -78,11 +78,29 @@ export default function AdminOrderDetail() {
 
       <ul className="rounded-md border border-white/10 p-5">
         {o.items.map((i) => (
-          <li key={i.id} className="flex justify-between border-b border-white/10 py-2 text-sm last:border-0">
-            <span>
-              {i.name} × {i.quantity}
-            </span>
-            <span>{inr(i.lineTotal)}</span>
+          <li key={i.id} className="flex justify-between border-b border-white/10 py-2.5 text-sm last:border-0">
+            <div>
+              <div className="font-medium text-white">
+                {i.name} × {i.quantity}
+              </div>
+              {i.variationDetails && (
+                <div className="flex items-center gap-1.5 text-xs text-white/60 mt-0.5">
+                  <span
+                    className="inline-block w-2.5 h-2.5 rounded-full border border-white/20 shrink-0 shadow-inner"
+                    style={{ backgroundColor: i.variationDetails.colorHex || '#000000' }}
+                  />
+                  <span className="text-[#c5a059] font-medium">
+                    {i.variationDetails.material}
+                  </span>
+                  <span>·</span>
+                  <span>{i.variationDetails.colorName}</span>
+                  <span className="text-white/40">
+                    ({i.variationDetails.diameter}mm, {i.variationDetails.weightGrams >= 1000 ? `${i.variationDetails.weightGrams / 1000}kg` : `${i.variationDetails.weightGrams}g`})
+                  </span>
+                </div>
+              )}
+            </div>
+            <span className="font-semibold text-white">{inr(i.lineTotal)}</span>
           </li>
         ))}
       </ul>
