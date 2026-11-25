@@ -102,52 +102,15 @@ export default function CategoryNav({ dbCategories = [] }) {
           )}
         </div>
 
-        {/* Primary Horizontal Category Links — from DB */}
-        <div className="hidden md:flex items-center gap-5 py-2.5 overflow-x-auto hide-scrollbar flex-1 px-6">
-          <NavLink
+        {/* Right Help & Service Links */}
+        <div className="flex items-center gap-4 text-xs text-slate-600 py-2.5">
+          <Link
             to="/shop/custom-printing"
-            className={({ isActive }) =>
-              `flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all whitespace-nowrap shadow-sm shrink-0 ${
-                isActive
-                  ? 'bg-[#f97316] text-white'
-                  : 'bg-orange-50 text-orange-600 border border-orange-200 hover:bg-orange-100 hover:text-orange-700'
-              }`
-            }
+            className="hover:text-slate-900 transition-colors"
           >
-            <Wrench size={13} />
-            <span>Custom 3D Printing</span>
-          </NavLink>
-
-          {validCats.slice(0, 7).map((cat) => (
-            <NavLink
-              key={cat.id || cat.slug}
-              to={`/shop/products?category=${encodeURIComponent(cat.slug)}`}
-              className={({ isActive }) =>
-                `hover:text-[#f97316] transition-colors whitespace-nowrap ${isActive ? 'text-[#f97316] font-semibold' : ''}`
-              }
-            >
-              {cat.name}
-            </NavLink>
-          ))}
-          {validCats.length === 0 && (
-            <NavLink
-              to="/shop/products"
-              className="hover:text-[#f97316] transition-colors whitespace-nowrap"
-            >
-              All Products
-            </NavLink>
-          )}
-          <NavLink
-            to="/shop/products?sort=best"
-            className="flex items-center gap-1 text-red-600 font-bold hover:text-red-700 transition-colors whitespace-nowrap"
-          >
-            <Flame size={14} className="fill-red-500" />
-            <span>Best Sellers</span>
-          </NavLink>
-        </div>
-
-        {/* Right Help Links */}
-        <div className="hidden lg:flex items-center gap-4 text-xs text-slate-500">
+            Custom 3D Printing
+          </Link>
+          <span className="text-slate-300">|</span>
           <Link to="/#about" className="hover:text-slate-900 transition-colors">
             Custom Manufacturing
           </Link>

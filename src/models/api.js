@@ -81,6 +81,77 @@ function rememberAccess(result, email) {
   return result
 }
 
+function mapCoupon(c) {
+  if (!c) return null
+  const now = new Date()
+  let computedStatus = c.status
+  if (c.status !== 'DISABLED' && c.status !== 'DRAFT') {
+    const start = new Date(c.start_date)
+    const end = new Date(c.end_date)
+    if (now < start) computedStatus = 'SCHEDULED'
+    else if (now > end) computedStatus = 'EXPIRED'
+    else computedStatus = 'ACTIVE'
+  }
+  return {
+    id: c.id,
+    code: c.code,
+    description: c.description || '',
+    discountType: c.discount_type,
+    discountValue: Number(c.discount_value),
+    startDate: c.start_date,
+    endDate: c.end_date,
+    minOrderValue: Number(c.min_order_value || 0),
+    maxDiscountAmount: c.max_discount_amount != null ? Number(c.max_discount_amount) : null,
+    usageLimit: c.usage_limit != null ? Number(c.usage_limit) : null,
+    usageCount: Number(c.usage_count || 0),
+    perCustomerLimit: Number(c.per_customer_limit || 1),
+    appliesTo: c.applies_to,
+    productIds: Array.isArray(c.product_ids_json) ? c.product_ids_json : [],
+    categoryIds: Array.isArray(c.category_ids_json) ? c.category_ids_json : [],
+    evaluationMode: c.evaluation_mode || 'OR',
+    status: computedStatus,
+    createdAt: c.created_at,
+    updatedAt: c.updated_at,
+  }
+}
+
+function calculateCouponDiscount(coupon, items, subtotal) {
+  if (!coupon) return 0
+  let eligibleSubtotal = 0
+  if (coupon.appliesTo === 'ALL' || (!coupon.productIds?.length && !coupon.categoryIds?.length)) {
+    eligibleSubtotal = subtotal
+  } else {
+    for (const item of items) {
+      const pId = item.productId || item.product_id || item.id
+      const cId = item.categoryId || item.category_id
+      const matchesProduct = (coupon.productIds || []).includes(pId)
+      const matchesCat = (coupon.categoryIds || []).includes(cId)
+      let eligible = false
+      if (coupon.appliesTo === 'PRODUCTS') eligible = matchesProduct
+      else if (coupon.appliesTo === 'CATEGORIES') eligible = matchesCat
+      else if (coupon.appliesTo === 'COMBINED') {
+        eligible = coupon.evaluationMode === 'AND' ? (matchesProduct && matchesCat) : (matchesProduct || matchesCat)
+      }
+      if (eligible) {
+        eligibleSubtotal += Number(item.unitPrice || item.price || 0) * Number(item.quantity || 1)
+      }
+    }
+  }
+
+  if (eligibleSubtotal <= 0) return 0
+
+  let discount = 0
+  if (coupon.discountType === 'PERCENTAGE') {
+    discount = Math.round((eligibleSubtotal * coupon.discountValue) / 100)
+    if (coupon.maxDiscountAmount && discount > coupon.maxDiscountAmount) {
+      discount = coupon.maxDiscountAmount
+    }
+  } else {
+    discount = Math.min(coupon.discountValue, eligibleSubtotal)
+  }
+  return discount
+}
+
 export const api = {
   health: () => edge('/health'),
   categories: () => edge('/categories'),
@@ -148,13 +219,128 @@ export const api = {
   search: (q) => edge(`/search?q=${encodeURIComponent(q)}`),
   settings: () => edge('/settings'),
 
-  cart: () => edge('/cart'),
+  // Cart & Coupon
+  cart: async () => {
+    const res = await edge('/cart')
+    try {
+      const saved = localStorage.getItem('invihub_applied_coupon')
+      if (saved) {
+        const coupon = JSON.parse(saved)
+        if (coupon && coupon.code) {
+          const items = res?.cart?.items || []
+          const subtotal = res?.totals?.subtotal || 0
+          if (!coupon.minOrderValue || subtotal >= coupon.minOrderValue) {
+            const discount = calculateCouponDiscount(coupon, items, subtotal)
+            if (discount > 0) {
+              res.totals = {
+                ...res.totals,
+                discount,
+                total: Math.max(0, subtotal - discount + (res.totals?.shipping || 0) + (res.totals?.tax || 0)),
+              }
+              res.coupon = {
+                code: coupon.code,
+                discountType: coupon.discountType,
+                discountValue: coupon.discountValue,
+                discountAmount: discount,
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {}
+    return res
+  },
   addToCart: (productId, quantity = 1) => edge('/cart', { method: 'POST', body: { productId, quantity } }),
   updateCart: (id, quantity) => edge(`/cart/${id}`, { method: 'PUT', body: { quantity } }),
   removeCart: (id) => edge(`/cart/${id}`, { method: 'DELETE' }),
+  applyCoupon: async (code) => {
+    const trimmed = String(code || '').trim().toUpperCase()
+    if (!trimmed) throw new ApiError('Please enter a coupon code', 400)
+    if (supabase) {
+      const { data: cp, error: cpErr } = await supabase
+        .from('coupons')
+        .select('*')
+        .ilike('code', trimmed)
+        .maybeSingle()
+
+      if (cpErr || !cp) throw new ApiError('Invalid coupon code', 400)
+
+      const coupon = mapCoupon(cp)
+      if (coupon.status === 'DISABLED' || coupon.status === 'DRAFT') {
+        throw new ApiError('This coupon is currently inactive', 400)
+      }
+      const now = new Date()
+      if (now < new Date(coupon.startDate)) {
+        throw new ApiError('This coupon has not started yet', 400)
+      }
+      if (now > new Date(coupon.endDate)) {
+        throw new ApiError('This coupon has expired', 400)
+      }
+      if (coupon.usageLimit && (coupon.usageCount || 0) >= coupon.usageLimit) {
+        throw new ApiError('This coupon has reached its maximum usage limit', 400)
+      }
+
+      const currentCart = await edge('/cart')
+      const items = currentCart?.cart?.items || []
+      const subtotal = currentCart?.totals?.subtotal || 0
+
+      if (coupon.minOrderValue && subtotal < coupon.minOrderValue) {
+        throw new ApiError(`Minimum order value of ${inr(coupon.minOrderValue)} required for this coupon`, 400)
+      }
+
+      const discount = calculateCouponDiscount(coupon, items, subtotal)
+      if (discount <= 0 && items.length > 0) {
+        throw new ApiError('This coupon is not applicable to the items in your cart', 400)
+      }
+
+      try {
+        localStorage.setItem('invihub_applied_coupon', JSON.stringify({ ...coupon, discountAmount: discount }))
+      } catch (_) {}
+
+      const totals = {
+        ...currentCart.totals,
+        discount,
+        total: Math.max(0, subtotal - discount + (currentCart.totals?.shipping || 0) + (currentCart.totals?.tax || 0)),
+      }
+
+      return {
+        ...currentCart,
+        totals,
+        coupon: {
+          code: coupon.code,
+          discountType: coupon.discountType,
+          discountValue: coupon.discountValue,
+          discountAmount: discount,
+        },
+      }
+    }
+    return await edge('/cart/coupon', { method: 'POST', body: { code } })
+  },
+  removeCoupon: async () => {
+    try {
+      localStorage.removeItem('invihub_applied_coupon')
+    } catch (_) {}
+    const currentCart = await edge('/cart')
+    return {
+      ...currentCart,
+      coupon: null,
+    }
+  },
 
   checkout: async (payload) => {
-    const result = await edge('/checkout', { method: 'POST', body: payload })
+    let savedCoupon = null
+    try {
+      savedCoupon = JSON.parse(localStorage.getItem('invihub_applied_coupon') || 'null')
+    } catch (_) {}
+    const body = {
+      ...payload,
+      couponCode: savedCoupon?.code || payload?.couponCode || null,
+      couponDiscount: savedCoupon?.discountAmount || null,
+    }
+    const result = await edge('/checkout', { method: 'POST', body })
+    try {
+      localStorage.removeItem('invihub_applied_coupon')
+    } catch (_) {}
     return rememberAccess(result, payload?.email)
   },
   confirmPay: (orderId) => edge('/checkout/confirm', { method: 'POST', body: { orderId } }),
@@ -373,6 +559,100 @@ export const api = {
   adminApproveReview: (id) => edge(`/admin/reviews/${id}/approve`, { method: 'POST', body: {} }),
   adminRejectReview: (id) => edge(`/admin/reviews/${id}/reject`, { method: 'POST', body: {} }),
   adminDeleteReview: (id) => edge(`/admin/reviews/${id}`, { method: 'DELETE' }),
+
+  // Admin Discount Coupons
+  adminCoupons: async (params = {}) => {
+    if (supabase) {
+      let query = supabase.from('coupons').select('*').order('created_at', { ascending: false })
+      if (params.status && params.status !== 'ALL') query = query.eq('status', params.status)
+      if (params.discountType && params.discountType !== 'ALL') query = query.eq('discount_type', params.discountType)
+      const { data, error } = await query
+      if (error) throw new ApiError(error.message, 400)
+      return { coupons: (data || []).map(mapCoupon) }
+    }
+    return await edge(`/admin/coupons?${new URLSearchParams(params)}`)
+  },
+  adminCoupon: async (id) => {
+    if (supabase) {
+      const { data: c, error } = await supabase.from('coupons').select('*').eq('id', id).maybeSingle()
+      if (error) throw new ApiError(error.message, 400)
+      if (!c) throw new ApiError('Coupon not found', 404)
+      return { coupon: mapCoupon(c) }
+    }
+    return await edge(`/admin/coupons/${id}`)
+  },
+  adminCreateCoupon: async (body) => {
+    if (supabase) {
+      const payload = {
+        code: String(body.code || '').trim().toUpperCase(),
+        description: String(body.description || '').trim(),
+        discount_type: body.discountType,
+        discount_value: Number(body.discountValue),
+        start_date: body.startDate,
+        end_date: body.endDate,
+        min_order_value: Number(body.minOrderValue || 0),
+        max_discount_amount: body.maxDiscountAmount ? Number(body.maxDiscountAmount) : null,
+        usage_limit: body.usageLimit ? Number(body.usageLimit) : null,
+        per_customer_limit: body.perCustomerLimit ? Number(body.perCustomerLimit) : 1,
+        applies_to: body.appliesTo || 'ALL',
+        product_ids_json: body.productIds || [],
+        category_ids_json: body.categoryIds || [],
+        evaluation_mode: body.evaluationMode || 'OR',
+        status: body.status || 'ACTIVE',
+      }
+      const { data, error } = await supabase.from('coupons').insert(payload).select().single()
+      if (error) throw new ApiError(error.message, 400)
+      return { ok: true, coupon: mapCoupon(data) }
+    }
+    return await edge('/admin/coupons', { method: 'POST', body })
+  },
+  adminUpdateCoupon: async (id, body) => {
+    if (supabase) {
+      const payload = {
+        code: String(body.code || '').trim().toUpperCase(),
+        description: String(body.description || '').trim(),
+        discount_type: body.discountType,
+        discount_value: Number(body.discountValue),
+        start_date: body.startDate,
+        end_date: body.endDate,
+        min_order_value: Number(body.minOrderValue || 0),
+        max_discount_amount: body.maxDiscountAmount ? Number(body.maxDiscountAmount) : null,
+        usage_limit: body.usageLimit ? Number(body.usageLimit) : null,
+        per_customer_limit: body.perCustomerLimit ? Number(body.perCustomerLimit) : 1,
+        applies_to: body.appliesTo || 'ALL',
+        product_ids_json: body.productIds || [],
+        category_ids_json: body.categoryIds || [],
+        evaluation_mode: body.evaluationMode || 'OR',
+        status: body.status || 'ACTIVE',
+        updated_at: new Date().toISOString(),
+      }
+      const { data, error } = await supabase.from('coupons').update(payload).eq('id', id).select().single()
+      if (error) throw new ApiError(error.message, 400)
+      return { ok: true, coupon: mapCoupon(data) }
+    }
+    return await edge(`/admin/coupons/${id}`, { method: 'PUT', body })
+  },
+  adminUpdateCouponStatus: async (id, status) => {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('coupons')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single()
+      if (error) throw new ApiError(error.message, 400)
+      return { ok: true, coupon: mapCoupon(data) }
+    }
+    return await edge(`/admin/coupons/${id}/status`, { method: 'PATCH', body: { status } })
+  },
+  adminDeleteCoupon: async (id) => {
+    if (supabase) {
+      const { error } = await supabase.from('coupons').delete().eq('id', id)
+      if (error) throw new ApiError(error.message, 400)
+      return { ok: true, deleted: true, id }
+    }
+    return await edge(`/admin/coupons/${id}`, { method: 'DELETE' })
+  },
 
   upload: async (file) => {
     const buf = await file.arrayBuffer()

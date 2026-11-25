@@ -8,6 +8,7 @@ import {
   Heart,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Star,
   Check,
   Minus,
@@ -21,6 +22,11 @@ import {
   CheckCircle2,
   AlertCircle,
   MessageSquare,
+  FileText,
+  HelpCircle,
+  X,
+  Sparkles,
+  Info,
 } from 'lucide-react'
 import { api, inr } from '../../../models/api'
 import ProductCard from '../components/ProductCard'
@@ -62,7 +68,6 @@ export default function ProductDetail() {
   const [pageStatus, setPageStatus] = useState(null)
   const [qty, setQty] = useState(1)
   const [activeImg, setActiveImg] = useState(0)
-  const [tab, setTab] = useState('desc')
   const [adding, setAdding] = useState(false)
   const [added, setAdded] = useState(false)
   const [selectedColor, setSelectedColor] = useState(0)
@@ -70,12 +75,27 @@ export default function ProductDetail() {
   const [selectedPartColors, setSelectedPartColors] = useState({})
   const [err, setErr] = useState('')
 
+  // Accordion open/close state for detail sections & reviews
+  const [openSections, setOpenSections] = useState({
+    description: true,
+    specifications: true,
+    printing: true,
+    shipping: false,
+    faqs: false,
+    reviews: true,
+  })
+  const toggleSection = (key) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
   // Reviews state
   const [reviewsData, setReviewsData] = useState({
     summary: { average: 0, totalCount: 0, distribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }, percentages: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } },
     reviews: [],
   })
   const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [visibleReviewsCount, setVisibleReviewsCount] = useState(5)
+  const [showWriteReviewModal, setShowWriteReviewModal] = useState(false)
   const [reviewForm, setReviewForm] = useState({
     name: '',
     email: '',
@@ -266,21 +286,6 @@ export default function ProductDetail() {
     }
   }
 
-  const tabs = [
-    { id: 'desc', label: 'Description' },
-    { id: 'spec', label: 'Specifications' },
-    ...(isFilament ? [{ id: 'print', label: 'Printing Parameters' }] : []),
-    { id: 'ship', label: 'Shipping & Delivery' },
-    {
-      id: 'reviews',
-      label:
-        reviewsData.summary.totalCount > 0
-          ? `Customer Reviews (${reviewsData.summary.totalCount})`
-          : 'Customer Reviews',
-    },
-    { id: 'faq', label: 'FAQs' },
-  ]
-
   return (
     <main className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-8">
       {/* Breadcrumbs */}
@@ -301,9 +306,9 @@ export default function ProductDetail() {
       </nav>
 
       {/* Main Product Container */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-12 gap-10">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-10 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         {/* Left Gallery */}
-        <div className="lg:col-span-6 space-y-4 lg:sticky lg:top-24 self-start">
+        <div className="lg:col-span-6 space-y-4 lg:sticky lg:top-28 self-start">
           {/* Main Hero Image */}
           <div className="relative aspect-square w-full max-h-[480px] sm:max-h-[520px] mx-auto rounded-2xl bg-slate-50 border border-slate-200 overflow-hidden p-6 sm:p-8 flex items-center justify-center select-none group">
             {imgs[activeImg] || imgs[0] ? (
@@ -443,8 +448,7 @@ export default function ProductDetail() {
                 <button
                   type="button"
                   onClick={() => {
-                    setTab('reviews')
-                    document.getElementById('reviews-tab-section')?.scrollIntoView({ behavior: 'smooth' })
+                    document.getElementById('customer-reviews')?.scrollIntoView({ behavior: 'smooth' })
                   }}
                   className="text-xs text-[#f97316] hover:underline cursor-pointer font-medium"
                 >
@@ -459,8 +463,7 @@ export default function ProductDetail() {
                 <button
                   type="button"
                   onClick={() => {
-                    setTab('reviews')
-                    document.getElementById('reviews-tab-section')?.scrollIntoView({ behavior: 'smooth' })
+                    document.getElementById('customer-reviews')?.scrollIntoView({ behavior: 'smooth' })
                   }}
                   className="text-xs text-[#f97316] hover:underline cursor-pointer font-medium"
                 >
@@ -731,409 +734,623 @@ export default function ProductDetail() {
               })}
             </div>
           )}
+
+          {/* Detailed Product Information Sections: Description, Specifications, Printing Parameters, Shipping & Delivery, FAQs */}
+          <div className="pt-8 border-t border-slate-200 space-y-3">
+            {/* 1. Description */}
+            <div id="product-description" className="border border-slate-200 rounded-xl overflow-hidden scroll-mt-28">
+              <button
+                type="button"
+                onClick={() => toggleSection('description')}
+                className="w-full flex items-center justify-between p-4 text-left bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                aria-expanded={openSections.description}
+              >
+                <span className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <FileText size={16} className="text-[#f97316]" />
+                  <span>Description</span>
+                </span>
+                <ChevronDown
+                  size={18}
+                  className={`text-slate-500 transition-transform duration-200 ${
+                    openSections.description ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+              {openSections.description && (
+                <div className="p-4 sm:p-5 border-t border-slate-200 bg-white">
+                  <div className="text-xs sm:text-sm text-slate-600 leading-relaxed space-y-3">
+                    <p>{p.description || p.shortDescription}</p>
+
+                    {p.features?.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-slate-100">
+                        <h4 className="font-bold text-slate-900 mb-2 text-xs uppercase tracking-wide">Key Engineering Features:</h4>
+                        <ul className="space-y-1.5">
+                          {p.features.map((f, i) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <Check size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+                              <span>{f}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Specifications */}
+            <div id="product-specifications" className="border border-slate-200 rounded-xl overflow-hidden scroll-mt-28">
+              <button
+                type="button"
+                onClick={() => toggleSection('specifications')}
+                className="w-full flex items-center justify-between p-4 text-left bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                aria-expanded={openSections.specifications}
+              >
+                <span className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Layers size={16} className="text-[#f97316]" />
+                  <span>Specifications</span>
+                </span>
+                <ChevronDown
+                  size={18}
+                  className={`text-slate-500 transition-transform duration-200 ${
+                    openSections.specifications ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+              {openSections.specifications && (
+                <div className="p-4 sm:p-5 border-t border-slate-200 bg-white">
+                  <div className="overflow-hidden border border-slate-200 rounded-lg">
+                    <table className="w-full text-xs text-left">
+                      <tbody className="divide-y divide-slate-100">
+                        {p.specifications?.map((s) => (
+                          <tr key={s.id || s.name} className="hover:bg-slate-50">
+                            <td className="p-2.5 sm:p-3 font-semibold text-slate-700 bg-slate-50 w-2/5">{s.name}</td>
+                            <td className="p-2.5 sm:p-3 text-slate-600">{s.value}</td>
+                          </tr>
+                        ))}
+                        <tr className="hover:bg-slate-50">
+                          <td className="p-2.5 sm:p-3 font-semibold text-slate-700 bg-slate-50">Brand</td>
+                          <td className="p-2.5 sm:p-3 text-slate-600">{p.brand || 'INVIHUB'}</td>
+                        </tr>
+                        <tr className="hover:bg-slate-50">
+                          <td className="p-2.5 sm:p-3 font-semibold text-slate-700 bg-slate-50">Country of Origin</td>
+                          <td className="p-2.5 sm:p-3 text-slate-600">India</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Printing Parameters (if isFilament) */}
+            {isFilament && (
+              <div id="product-printing" className="border border-slate-200 rounded-xl overflow-hidden scroll-mt-28">
+                <button
+                  type="button"
+                  onClick={() => toggleSection('printing')}
+                  className="w-full flex items-center justify-between p-4 text-left bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                  aria-expanded={openSections.printing}
+                >
+                  <span className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                    <Thermometer size={16} className="text-[#f97316]" />
+                    <span>Printing Parameters</span>
+                  </span>
+                  <ChevronDown
+                    size={18}
+                    className={`text-slate-500 transition-transform duration-200 ${
+                      openSections.printing ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+                {openSections.printing && (
+                  <div className="p-4 sm:p-5 border-t border-slate-200 bg-white">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <div className="flex items-center gap-2 font-bold text-slate-900 mb-1">
+                          <Thermometer size={15} className="text-[#f97316]" />
+                          <span>Extruder Temperature</span>
+                        </div>
+                        <p className="text-slate-600">190°C – 220°C (Recommended: 210°C)</p>
+                      </div>
+
+                      <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <div className="flex items-center gap-2 font-bold text-slate-900 mb-1">
+                          <Thermometer size={15} className="text-amber-500" />
+                          <span>Bed Temperature</span>
+                        </div>
+                        <p className="text-slate-600">50°C – 60°C (PEI or Glass plate)</p>
+                      </div>
+
+                      <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <div className="flex items-center gap-2 font-bold text-slate-900 mb-1">
+                          <Clock size={15} className="text-blue-500" />
+                          <span>Printing Speed</span>
+                        </div>
+                        <p className="text-slate-600">40 – 300 mm/s depending on motion system</p>
+                      </div>
+
+                      <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <div className="flex items-center gap-2 font-bold text-slate-900 mb-1">
+                          <Layers size={15} className="text-purple-500" />
+                          <span>Cooling Fan</span>
+                        </div>
+                        <p className="text-slate-600">100% after layer 2 for crisp overhangs</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 3. Shipping & Delivery */}
+            <div id="product-shipping" className="border border-slate-200 rounded-xl overflow-hidden scroll-mt-28">
+              <button
+                type="button"
+                onClick={() => toggleSection('shipping')}
+                className="w-full flex items-center justify-between p-4 text-left bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                aria-expanded={openSections.shipping}
+              >
+                <span className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <Truck size={16} className="text-[#f97316]" />
+                  <span>Shipping & Delivery</span>
+                </span>
+                <ChevronDown
+                  size={18}
+                  className={`text-slate-500 transition-transform duration-200 ${
+                    openSections.shipping ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+              {openSections.shipping && (
+                <div className="p-4 sm:p-5 border-t border-slate-200 bg-white">
+                  <div className="text-xs sm:text-sm text-slate-600 space-y-2.5">
+                    <p>
+                      Orders placed before 2:00 PM are dispatched on the same business day from our Bangalore fulfillment hub.
+                    </p>
+                    <p>
+                      Standard courier delivery time is <strong>3–5 business days</strong> for metro cities and 5–7 days for other regions across India.
+                    </p>
+                    <p>
+                      Every parcel is securely packaged in moisture-proof bubble cushioning and tamper-proof corrugated boxes.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 4. FAQs */}
+            <div id="product-faqs" className="border border-slate-200 rounded-xl overflow-hidden scroll-mt-28">
+              <button
+                type="button"
+                onClick={() => toggleSection('faqs')}
+                className="w-full flex items-center justify-between p-4 text-left bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer"
+                aria-expanded={openSections.faqs}
+              >
+                <span className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <HelpCircle size={16} className="text-[#f97316]" />
+                  <span>Frequently Asked Questions</span>
+                </span>
+                <ChevronDown
+                  size={18}
+                  className={`text-slate-500 transition-transform duration-200 ${
+                    openSections.faqs ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+              {openSections.faqs && (
+                <div className="p-4 sm:p-5 border-t border-slate-200 bg-white">
+                  <div className="space-y-2.5 text-xs sm:text-sm text-slate-600">
+                    <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50">
+                      <h5 className="font-bold text-slate-900 mb-1">Is this compatible with Bambu Lab / Creality / Prusa?</h5>
+                      <p>Yes, all our 1.75mm filaments fit standard spools and AMS / multi-material systems with standard spools.</p>
+                    </div>
+                    <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50">
+                      <h5 className="font-bold text-slate-900 mb-1">Do you provide GST tax invoices?</h5>
+                      <p>Yes, you can enter your business GST number during checkout to claim B2B input tax credit.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Tabs Section: Description, Specifications, Printing Parameters, Shipping, Reviews */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-10 space-y-6">
-        <div className="flex gap-4 sm:gap-8 overflow-x-auto border-b border-slate-200 pb-2 hide-scrollbar">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={`text-xs sm:text-sm font-bold pb-2 transition-all shrink-0 ${
-                tab === t.id
-                  ? 'border-b-2 border-[#f97316] text-[#f97316]'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+      {/* 2. Similar Products (Appears after product details & before Customer Reviews) */}
+      {data.related?.length > 0 && (
+        <section id="similar-products" className="space-y-4 pt-6 border-t border-slate-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wider text-[#f97316]">
+                Recommendations
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                Similar Products
+              </h2>
+            </div>
+            <span className="text-xs text-slate-500 font-medium hidden sm:inline">
+              Based on {p.category?.name || 'materials and engineering category'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {data.related
+              .filter((r) => r.id !== p.id && r.slug !== p.slug)
+              .map((r) => (
+                <ProductCard key={r.id} product={r} />
+              ))}
+          </div>
+        </section>
+      )}
+
+      {/* 3. Customer Reviews Section (Bottom of the page after Similar Products) */}
+      <section id="customer-reviews" className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-10 space-y-8 scroll-mt-28">
+        {/* Section Header */}
+        <div className="border-b border-slate-200 pb-5">
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            Verified Feedback
+          </div>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5 mt-0.5">
+            <MessageSquare className="text-slate-700" size={24} />
+            <span>Customer Reviews</span>
+            {reviewsData.summary.totalCount > 0 && (
+              <span className="text-sm font-bold text-slate-400">
+                ({reviewsData.summary.totalCount})
+              </span>
+            )}
+          </h2>
         </div>
 
-        {/* Tab: Description */}
-        {tab === 'desc' && (
-          <div className="space-y-4 text-xs sm:text-sm text-slate-600 leading-relaxed max-w-3xl">
-            <p>{p.description || p.shortDescription}</p>
+        {/* Two Column Layout on Desktop */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+          {/* Left Column — Rating Summary */}
+          <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-28">
+            <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 space-y-5">
+              {/* Overall Score */}
+              <div className="space-y-1.5">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">
+                    {reviewsData.summary.average > 0 ? reviewsData.summary.average.toFixed(1) : '0.0'}
+                  </span>
+                  <span className="text-base sm:text-lg text-slate-400 font-bold">out of 5</span>
+                </div>
 
-            {p.features?.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-slate-100">
-                <h4 className="font-bold text-slate-900 mb-2">Key Engineering Features:</h4>
-                <ul className="space-y-2">
-                  {p.features.map((f, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <Check size={14} className="text-emerald-500 shrink-0 mt-0.5" />
-                      <span>{f}</span>
-                    </li>
+                <div className="flex items-center text-amber-400 gap-1 my-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      size={20}
+                      className={
+                        star <= Math.round(reviewsData.summary.average || 0)
+                          ? 'fill-amber-400 text-amber-400'
+                          : 'text-slate-200 fill-slate-100'
+                      }
+                    />
                   ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Tab: Specifications */}
-        {tab === 'spec' && (
-          <div className="max-w-2xl">
-            <table className="w-full text-xs text-left">
-              <tbody className="divide-y divide-slate-100 border border-slate-200 rounded-lg overflow-hidden">
-                {p.specifications?.map((s) => (
-                  <tr key={s.id || s.name} className="hover:bg-slate-50">
-                    <td className="p-3 font-semibold text-slate-700 bg-slate-50 w-1/3">{s.name}</td>
-                    <td className="p-3 text-slate-600">{s.value}</td>
-                  </tr>
-                ))}
-                <tr className="hover:bg-slate-50">
-                  <td className="p-3 font-semibold text-slate-700 bg-slate-50">Brand</td>
-                  <td className="p-3 text-slate-600">{p.brand || 'INVIHUB'}</td>
-                </tr>
-                <tr className="hover:bg-slate-50">
-                  <td className="p-3 font-semibold text-slate-700 bg-slate-50">Country of Origin</td>
-                  <td className="p-3 text-slate-600">India</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Tab: Printing Parameters */}
-        {tab === 'print' && (
-          <div className="max-w-2xl grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <div className="flex items-center gap-2 font-bold text-slate-900 mb-1">
-                <Thermometer size={16} className="text-[#f97316]" />
-                <span>Extruder Temperature</span>
-              </div>
-              <p className="text-slate-600">190°C – 220°C (Recommended: 210°C)</p>
-            </div>
-
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <div className="flex items-center gap-2 font-bold text-slate-900 mb-1">
-                <Thermometer size={16} className="text-amber-500" />
-                <span>Bed Temperature</span>
-              </div>
-              <p className="text-slate-600">50°C – 60°C (PEI or Glass plate)</p>
-            </div>
-
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <div className="flex items-center gap-2 font-bold text-slate-900 mb-1">
-                <Clock size={16} className="text-blue-500" />
-                <span>Printing Speed</span>
-              </div>
-              <p className="text-slate-600">40 – 300 mm/s depending on motion system</p>
-            </div>
-
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <div className="flex items-center gap-2 font-bold text-slate-900 mb-1">
-                <Layers size={16} className="text-purple-500" />
-                <span>Cooling Fan</span>
-              </div>
-              <p className="text-slate-600">100% after layer 2 for crisp overhangs</p>
-            </div>
-          </div>
-        )}
-
-        {/* Tab: Shipping */}
-        {tab === 'ship' && (
-          <div className="text-xs sm:text-sm text-slate-600 space-y-3 max-w-xl">
-            <p>
-              Orders placed before 2:00 PM are dispatched on the same business day from our Bangalore fulfillment hub.
-            </p>
-            <p>
-              Standard courier delivery time is <strong>3–5 business days</strong> for metro cities and 5–7 days for other regions across India.
-            </p>
-            <p>
-              Every parcel is securely packaged in moisture-proof bubble cushioning and tamper-proof corrugated boxes.
-            </p>
-          </div>
-        )}
-
-        {/* Tab: Reviews */}
-        {tab === 'reviews' && (
-          <div id="reviews-tab-section" className="space-y-6 max-w-4xl text-xs sm:text-sm">
-            {/* Reviews Summary Header & Rating Distribution */}
-            {reviewsData.summary.totalCount > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-200">
-                {/* Overall Score */}
-                <div className="md:col-span-5 flex flex-col justify-center items-center md:items-start text-center md:text-left border-b md:border-b-0 md:border-r border-slate-200 pb-4 md:pb-0 md:pr-6">
-                  <div className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight">
-                    {reviewsData.summary.average.toFixed(1)}
-                    <span className="text-xl text-slate-400 font-bold"> / 5</span>
-                  </div>
-                  <div className="flex items-center text-amber-400 my-2">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star
-                        key={star}
-                        size={20}
-                        className={
-                          star <= Math.round(reviewsData.summary.average || 0)
-                            ? 'fill-amber-400 text-amber-400'
-                            : 'text-slate-200 fill-slate-100'
-                        }
-                      />
-                    ))}
-                  </div>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Based on {reviewsData.summary.totalCount} verified customer{' '}
-                    {reviewsData.summary.totalCount === 1 ? 'review' : 'reviews'}
-                  </p>
                 </div>
 
-                {/* Rating Distribution Bars */}
-                <div className="md:col-span-7 flex flex-col justify-center space-y-2">
-                  {[5, 4, 3, 2, 1].map((stars) => {
-                    const count = reviewsData.summary.distribution?.[stars] || 0
-                    const pct = reviewsData.summary.percentages?.[stars] || 0
-                    return (
-                      <div key={stars} className="flex items-center gap-3 text-xs">
-                        <span className="w-12 font-bold text-slate-700 flex items-center gap-1">
-                          {stars} <Star size={12} className="fill-amber-400 text-amber-400" />
-                        </span>
-                        <div className="flex-1 bg-slate-200 h-2.5 rounded-full overflow-hidden">
-                          <div
-                            className="bg-amber-400 h-full rounded-full transition-all duration-500"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span className="w-10 text-right text-slate-400 font-mono text-[11px]">
-                          {pct}%
-                        </span>
-                        <span className="w-8 text-right text-slate-500 text-[11px]">
-                          ({count})
-                        </span>
+                <p className="text-xs text-slate-500 font-medium">
+                  {reviewsData.summary.totalCount > 0
+                    ? `Based on ${reviewsData.summary.totalCount} global rating${reviewsData.summary.totalCount === 1 ? '' : 's'} and reviews`
+                    : 'No ratings yet'}
+                </p>
+              </div>
+
+              {/* Rating Distribution Bars (5, 4, 3, 2, 1 stars) */}
+              <div className="space-y-2.5 pt-4 border-t border-slate-200">
+                {[5, 4, 3, 2, 1].map((stars) => {
+                  const count = reviewsData.summary.distribution?.[stars] || 0
+                  const pct = reviewsData.summary.percentages?.[stars] || 0
+                  return (
+                    <div key={stars} className="flex items-center gap-3 text-xs">
+                      <span className="w-14 font-bold text-slate-700 flex items-center gap-1 shrink-0">
+                        {stars} star
+                      </span>
+                      <div className="flex-1 bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                        <div
+                          className="bg-amber-400 h-full rounded-full transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
                       </div>
-                    )
-                  })}
-                </div>
+                      <span className="w-10 text-right text-slate-600 font-mono text-[11px] font-semibold shrink-0">
+                        {pct}%
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
-            ) : (
-              <div className="p-8 bg-slate-50 rounded-2xl border border-slate-200 text-center space-y-2">
-                <div className="w-12 h-12 rounded-full bg-orange-100 text-[#f97316] flex items-center justify-center mx-auto mb-3">
+
+              {/* Write a review action */}
+              <div className="pt-4 border-t border-slate-200 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReviewFeedback(null)
+                    setShowWriteReviewModal(true)
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold transition-all shadow-xs text-center cursor-pointer"
+                >
+                  Write a review
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column — Customer Reviews List */}
+          <div className="lg:col-span-7 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
+                {reviewsData.reviews?.length > 0
+                  ? `Showing ${Math.min(visibleReviewsCount, reviewsData.reviews.length)} of ${reviewsData.reviews.length} Reviews`
+                  : 'Customer Feedback'}
+              </h3>
+            </div>
+
+            {/* Empty State */}
+            {(!reviewsData.reviews || reviewsData.reviews.length === 0) && (
+              <div className="p-8 sm:p-12 bg-slate-50 rounded-2xl border border-slate-200 text-center space-y-3">
+                <div className="w-12 h-12 rounded-full bg-orange-100 text-[#f97316] flex items-center justify-center mx-auto mb-2">
                   <Star size={24} className="fill-orange-500 text-orange-500" />
                 </div>
                 <h4 className="text-base font-bold text-slate-900">No reviews yet</h4>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  Be the first to review this product and help fellow makers and engineers make informed decisions.
+                <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                  Be the first to review this product and help fellow makers and engineers make informed printing decisions.
                 </p>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReviewFeedback(null)
+                      setShowWriteReviewModal(true)
+                    }}
+                    className="btn-shop-primary text-xs py-2 px-4 font-bold"
+                  >
+                    Be the first to review
+                  </button>
+                </div>
               </div>
             )}
 
-            {/* Write a Review Section */}
-            <div className="p-6 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-4">
-              <div className="border-b border-slate-100 pb-3">
-                <h4 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                  <MessageSquare size={18} className="text-[#f97316]" />
-                  <span>Write a Customer Review</span>
-                </h4>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Your feedback helps other buyers and directly improves INVIHUB engineering standards.
-                </p>
-              </div>
-
-              {reviewFeedback && (
-                <div
-                  className={`p-3 rounded-lg text-xs flex items-center gap-2 ${
-                    reviewFeedback.type === 'success'
-                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                      : 'bg-red-50 text-red-800 border border-red-200'
-                  }`}
-                >
-                  {reviewFeedback.type === 'success' ? (
-                    <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
-                  ) : (
-                    <AlertCircle size={16} className="text-red-600 shrink-0" />
-                  )}
-                  <span>{reviewFeedback.message}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleReviewSubmit} className="space-y-4">
-                {/* Rating Picker */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Your Overall Rating <span className="text-red-500">*</span>
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                      {[1, 2, 3, 4, 5].map((star) => {
-                        const isFilled = star <= (reviewHoverRating || reviewForm.rating)
-                        return (
-                          <button
-                            key={star}
-                            type="button"
-                            onClick={() => setReviewForm((f) => ({ ...f, rating: star }))}
-                            onMouseEnter={() => setReviewHoverRating(star)}
-                            onMouseLeave={() => setReviewHoverRating(0)}
-                            className="p-1 rounded hover:scale-125 transition-transform"
-                            title={`${star} star${star > 1 ? 's' : ''}`}
-                          >
-                            <Star
-                              size={22}
-                              className={
-                                isFilled
-                                  ? 'fill-amber-400 text-amber-400'
-                                  : 'text-slate-300 hover:text-amber-300'
-                              }
-                            />
-                          </button>
-                        )
-                      })}
-                    </div>
-                    <span className="text-xs font-semibold text-slate-600 ml-2">
-                      {
-                        ['', '1 - Poor', '2 - Fair', '3 - Good', '4 - Very Good', '5 - Excellent'][
-                          reviewHoverRating || reviewForm.rating
-                        ]
-                      }
-                    </span>
-                  </div>
-                </div>
-
-                {/* Name & Email */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Your Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      minLength={2}
-                      autoComplete="name"
-                      placeholder="e.g. Karthik R."
-                      value={reviewForm.name}
-                      onChange={(e) => setReviewForm((f) => ({ ...f, name: e.target.value }))}
-                      className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-[#f97316] focus:border-transparent outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Your Email Address <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      autoComplete="email"
-                      placeholder="e.g. karthik@example.com"
-                      value={reviewForm.email}
-                      onChange={(e) => setReviewForm((f) => ({ ...f, email: e.target.value }))}
-                      className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-[#f97316] focus:border-transparent outline-none"
-                    />
-                    <span className="text-[10px] text-slate-400 mt-0.5 block">
-                      Kept private; not published publicly.
-                    </span>
-                  </div>
-                </div>
-
-                {/* Written Review */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Written Review <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    required
-                    rows={4}
-                    minLength={3}
-                    placeholder="Describe printability, surface finish, layer adhesion, durability, or dimensions..."
-                    value={reviewForm.comment}
-                    onChange={(e) => setReviewForm((f) => ({ ...f, comment: e.target.value }))}
-                    className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-[#f97316] focus:border-transparent outline-none"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={reviewSubmitting}
-                  className="btn-shop-primary text-xs py-2.5 px-6 font-bold disabled:opacity-50"
-                >
-                  {reviewSubmitting ? 'Submitting Review…' : 'Submit Review'}
-                </button>
-              </form>
-            </div>
-
             {/* Approved Reviews List */}
             {reviewsData.reviews?.length > 0 && (
-              <div className="space-y-4 pt-2">
-                <h4 className="text-sm font-extrabold text-slate-900 border-b border-slate-200 pb-2">
-                  Customer Reviews ({reviewsData.reviews.length})
-                </h4>
-
-                <div className="divide-y divide-slate-100 space-y-4">
-                  {reviewsData.reviews.map((r) => (
-                    <div key={r.id} className="pt-4 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center">
-                            {(r.customerName || 'U').charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <span className="font-bold text-slate-900 text-xs">{r.customerName}</span>
-                            {r.verifiedPurchase && (
-                              <span className="ml-2 inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                                <BadgeCheck size={11} /> Verified Buyer
-                              </span>
-                            )}
-                          </div>
+              <div className="divide-y divide-slate-100 space-y-6">
+                {reviewsData.reviews.slice(0, visibleReviewsCount).map((r) => (
+                  <div key={r.id} className="pt-6 first:pt-0 space-y-2.5">
+                    {/* User Profile & Verified Badge */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center ring-2 ring-white shadow-xs">
+                          {(r.customerName || 'U').charAt(0).toUpperCase()}
                         </div>
-                        <span className="text-[11px] text-slate-400">
-                          {r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : ''}
-                        </span>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900 text-xs">
+                              {r.customerName || 'Customer'}
+                            </span>
+                          </div>
+                          {r.verifiedPurchase && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/80 mt-0.5">
+                              <BadgeCheck size={11} className="text-emerald-600" />
+                              <span>Verified Purchase</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
+                      <span className="text-[11px] text-slate-400 font-medium">
+                        {r.createdAt
+                          ? new Date(r.createdAt).toLocaleDateString('en-IN', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                            })
+                          : ''}
+                      </span>
+                    </div>
 
+                    {/* Star Rating & Review Title */}
+                    <div className="flex items-center gap-2">
                       <div className="flex items-center text-amber-400 gap-0.5">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <Star
                             key={star}
-                            size={12}
+                            size={13}
                             className={
-                              star <= r.rating
+                              star <= (Number(r.rating) || 5)
                                 ? 'fill-amber-400 text-amber-400'
                                 : 'text-slate-200 fill-slate-100'
                             }
                           />
                         ))}
                       </div>
-
                       {r.title && (
-                        <h5 className="font-bold text-xs text-slate-900 mt-1">{r.title}</h5>
+                        <h4 className="font-bold text-xs text-slate-900">{r.title}</h4>
                       )}
-
-                      <p className="text-slate-600 leading-relaxed text-xs">{r.comment}</p>
                     </div>
-                  ))}
-                </div>
+
+                    {/* Comment text */}
+                    <p className="text-slate-700 leading-relaxed text-xs sm:text-sm whitespace-pre-line">
+                      {r.comment}
+                    </p>
+                  </div>
+                ))}
+
+                {/* Load More Reviews Control */}
+                {visibleReviewsCount < reviewsData.reviews.length && (
+                  <div className="pt-6 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setVisibleReviewsCount((prev) => prev + 5)}
+                      className="py-2.5 px-6 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold transition-all shadow-xs"
+                    >
+                      Load More Reviews ({reviewsData.reviews.length - visibleReviewsCount} remaining)
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
+        </div>
+      </section>
 
-        {/* Tab: FAQ */}
-        {tab === 'faq' && (
-          <div className="space-y-3 max-w-2xl text-xs sm:text-sm text-slate-600">
-            <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50">
-              <h5 className="font-bold text-slate-900 mb-1">Is this compatible with Bambu Lab / Creality / Prusa?</h5>
-              <p>Yes, all our 1.75mm filaments fit standard spools and AMS / multi-material systems with standard spools.</p>
+      {/* Write a Review Modal */}
+      {showWriteReviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div
+            className="bg-white rounded-2xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+                  <MessageSquare size={20} className="text-[#f97316]" />
+                  <span>Write a Customer Review</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Share your experience with {p.name}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWriteReviewModal(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                aria-label="Close review modal"
+              >
+                <X size={18} />
+              </button>
             </div>
-            <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50">
-              <h5 className="font-bold text-slate-900 mb-1">Do you provide GST tax invoices?</h5>
-              <p>Yes, you can enter your business GST number during checkout to claim B2B input tax credit.</p>
-            </div>
-          </div>
-        )}
-      </div>
 
-      {/* Related Products */}
-      {data.related?.length > 0 && (
-        <section className="space-y-4 pt-4">
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">You May Also Like</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {data.related.map((r) => (
-              <ProductCard key={r.id} product={r} />
-            ))}
+            {reviewFeedback && (
+              <div
+                className={`p-3 rounded-lg text-xs flex items-center gap-2 ${
+                  reviewFeedback.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                    : 'bg-red-50 text-red-800 border border-red-200'
+                }`}
+              >
+                {reviewFeedback.type === 'success' ? (
+                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle size={16} className="text-red-600 shrink-0" />
+                )}
+                <span>{reviewFeedback.message}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleReviewSubmit} className="space-y-4">
+              {/* Rating Picker */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Overall Rating <span className="text-red-500">*</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => {
+                      const isFilled = star <= (reviewHoverRating || reviewForm.rating)
+                      return (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setReviewForm((f) => ({ ...f, rating: star }))}
+                          onMouseEnter={() => setReviewHoverRating(star)}
+                          onMouseLeave={() => setReviewHoverRating(0)}
+                          className="p-1 rounded hover:scale-125 transition-transform cursor-pointer"
+                          title={`${star} star${star > 1 ? 's' : ''}`}
+                        >
+                          <Star
+                            size={24}
+                            className={
+                              isFilled
+                                ? 'fill-amber-400 text-amber-400'
+                                : 'text-slate-300 hover:text-amber-300'
+                            }
+                          />
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <span className="text-xs font-semibold text-slate-600 ml-2">
+                    {
+                      ['', '1 - Poor', '2 - Fair', '3 - Good', '4 - Very Good', '5 - Excellent'][
+                        reviewHoverRating || reviewForm.rating
+                      ]
+                    }
+                  </span>
+                </div>
+              </div>
+
+              {/* Name & Email */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Display Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    minLength={2}
+                    autoComplete="name"
+                    placeholder="e.g. Karthik R."
+                    value={reviewForm.name}
+                    onChange={(e) => setReviewForm((f) => ({ ...f, name: e.target.value }))}
+                    className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-[#f97316] focus:border-transparent outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    autoComplete="email"
+                    placeholder="e.g. karthik@example.com"
+                    value={reviewForm.email}
+                    onChange={(e) => setReviewForm((f) => ({ ...f, email: e.target.value }))}
+                    className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-[#f97316] focus:border-transparent outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-0.5 block">
+                    Kept private; used to confirm verified purchases.
+                  </span>
+                </div>
+              </div>
+
+              {/* Written Review */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Written Review / Comment <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={4}
+                  minLength={3}
+                  placeholder="Describe product quality, print results, dimensional accuracy, or your experience..."
+                  value={reviewForm.comment}
+                  onChange={(e) => setReviewForm((f) => ({ ...f, comment: e.target.value }))}
+                  className="w-full px-3.5 py-2 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-[#f97316] focus:border-transparent outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowWriteReviewModal(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={reviewSubmitting}
+                  className="btn-shop-primary text-xs py-2 px-5 font-bold disabled:opacity-50"
+                >
+                  {reviewSubmitting ? 'Submitting…' : 'Submit Review'}
+                </button>
+              </div>
+            </form>
           </div>
-        </section>
+        </div>
       )}
     </main>
   )

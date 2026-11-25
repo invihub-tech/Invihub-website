@@ -142,16 +142,75 @@ export function intersectPaymentMethods(products: { payment_methods_json?: strin
 }
 
 export function computeCartTotals(
-  items: { quantity: number; product: { price: number } }[],
+  items: { quantity: number; product: { id?: string; price: number; category_id?: string; category_ids_json?: any } }[],
   settings: typeof DEFAULT_SETTINGS,
+  coupon?: any,
 ) {
-  const subtotal = round2(items.reduce((s, i) => s + i.product.price * i.quantity, 0))
-  const discount = 0
+  const subtotal = round2(items.reduce((s, i) => s + (Number(i.product.price) || 0) * (Number(i.quantity) || 1), 0))
+  let discount = 0
+  let eligibleSubtotal = 0
+
+  if (coupon) {
+    const appliesTo = coupon.applies_to || coupon.appliesTo || 'ALL'
+    const productIds: string[] = Array.isArray(coupon.product_ids_json || coupon.productIds)
+      ? (coupon.product_ids_json || coupon.productIds)
+      : []
+    const categoryIds: string[] = Array.isArray(coupon.category_ids_json || coupon.categoryIds)
+      ? (coupon.category_ids_json || coupon.categoryIds)
+      : []
+    const evalMode = coupon.evaluation_mode || coupon.evaluationMode || 'OR'
+
+    for (const item of items) {
+      const p = item.product || {}
+      const pid = p.id
+      const pCats: string[] = []
+      if (p.category_id) pCats.push(p.category_id)
+      try {
+        const parsed = typeof p.category_ids_json === 'string' ? JSON.parse(p.category_ids_json) : p.category_ids_json
+        if (Array.isArray(parsed)) pCats.push(...parsed)
+      } catch {}
+
+      let isEligible = false
+      if (appliesTo === 'ALL') {
+        isEligible = true
+      } else if (appliesTo === 'PRODUCTS') {
+        isEligible = Boolean(pid && productIds.includes(pid))
+      } else if (appliesTo === 'CATEGORIES') {
+        isEligible = pCats.some((c) => categoryIds.includes(c))
+      } else if (appliesTo === 'COMBINED') {
+        const prodMatch = Boolean(pid && productIds.includes(pid))
+        const catMatch = pCats.some((c) => categoryIds.includes(c))
+        isEligible = evalMode === 'AND' ? (prodMatch && catMatch) : (prodMatch || catMatch)
+      }
+
+      if (isEligible) {
+        eligibleSubtotal += (Number(p.price) || 0) * (Number(item.quantity) || 1)
+      }
+    }
+
+    eligibleSubtotal = round2(eligibleSubtotal)
+
+    if (eligibleSubtotal > 0) {
+      const discountType = String(coupon.discount_type || coupon.discountType || '').toUpperCase()
+      const discountVal = Number(coupon.discount_value || coupon.discountValue || 0)
+
+      if (discountType === 'PERCENTAGE') {
+        let calc = round2((eligibleSubtotal * discountVal) / 100)
+        const maxCap = Number(coupon.max_discount_amount || coupon.maxDiscountAmount || 0)
+        if (maxCap > 0 && calc > maxCap) calc = maxCap
+        discount = Math.min(eligibleSubtotal, calc)
+      } else if (discountType === 'FIXED') {
+        discount = Math.min(eligibleSubtotal, discountVal)
+      }
+    }
+  }
+
+  discount = round2(discount)
   const afterDiscount = Math.max(0, subtotal - discount)
   const shipping = afterDiscount >= settings.freeShippingThreshold ? 0 : settings.shippingCharge
   const tax = round2(afterDiscount * (settings.taxRate / 100))
   const total = round2(afterDiscount + shipping + tax)
-  return { subtotal, discount, shipping, tax, total }
+  return { subtotal, discount, shipping, tax, total, eligibleSubtotal }
 }
 
 export function serializeProduct(p: any) {

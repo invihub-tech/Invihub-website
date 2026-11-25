@@ -103,22 +103,6 @@ export default function ShopHeader({ onOpenCart }) {
               }}
               className="flex items-center rounded-lg border-2 border-slate-200 focus-within:border-[#f97316] transition-colors duration-200 bg-slate-50 focus-within:bg-white overflow-hidden shadow-inner"
             >
-              {/* Category selector */}
-              <div className="hidden lg:flex items-center px-3 border-r border-slate-200 text-xs text-slate-600 bg-slate-100/70 shrink-0">
-                <select
-                  value={selectedCat}
-                  onChange={(e) => setSelectedCat(e.target.value)}
-                  className="bg-transparent font-medium py-2.5 outline-none cursor-pointer pr-1"
-                >
-                  <option value="all">All Departments</option>
-                  {categories.map((c) => (
-                    <option key={c.slug} value={c.slug}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
               {/* Input */}
               <div className="relative flex-1 flex items-center">
                 <input

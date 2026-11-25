@@ -342,10 +342,63 @@ async function cartPayload(req: Request, sb: ReturnType<typeof serviceClient>, c
     quantity: i.quantity,
     product: i.products,
   }))
-  const totals = computeCartTotals(items, settings)
+
+  let coupon: any = null
+  let couponError: string | null = null
+
+  if (cart.coupon_code) {
+    const { data: c } = await sb
+      .from('coupons')
+      .select('*')
+      .ilike('code', cart.coupon_code)
+      .maybeSingle()
+
+    if (c) {
+      const now = new Date()
+      const start = new Date(c.start_date)
+      const end = new Date(c.end_date)
+
+      if (c.status === 'DISABLED' || c.status === 'DRAFT') {
+        couponError = 'This coupon is currently inactive'
+      } else if (now < start) {
+        couponError = 'This coupon has not started yet'
+      } else if (now > end) {
+        couponError = 'This coupon has expired'
+      } else if (c.usage_limit && c.usage_count >= c.usage_limit) {
+        couponError = 'This coupon has reached its maximum usage limit'
+      } else {
+        const preTotals = computeCartTotals(items, settings)
+        if (c.min_order_value && preTotals.subtotal < Number(c.min_order_value)) {
+          couponError = `Minimum order value of ₹${c.min_order_value} required for this coupon`
+        } else {
+          coupon = c
+        }
+      }
+    } else {
+      couponError = 'Invalid coupon code'
+    }
+  }
+
+  const totals = computeCartTotals(items, settings, coupon)
   const count = items.reduce((s: number, i: any) => s + i.quantity, 0)
   const allowedPaymentMethods = intersectPaymentMethods(items.map((i: any) => i.product))
-  return { cart: serializeCart(cart), totals, count, allowedPaymentMethods }
+
+  return {
+    cart: serializeCart(cart),
+    totals,
+    count,
+    allowedPaymentMethods,
+    coupon: coupon
+      ? {
+          id: coupon.id,
+          code: coupon.code,
+          discountType: coupon.discount_type,
+          discountValue: Number(coupon.discount_value),
+          discountAmount: totals.discount,
+        }
+      : null,
+    couponError,
+  }
 }
 
 async function reloadCart(sb: ReturnType<typeof serviceClient>, cartId: string) {
@@ -870,6 +923,81 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ---------- COUPON APPLY & REMOVE ----------
+    if (match(method, path, 'POST', '/cart/coupon')) {
+      const body = await readBody(req)
+      const code = String(body?.code || '').trim().toUpperCase()
+      if (!code) return err(req, 'Coupon code is required')
+
+      const loaded = await requireCart(req, sb)
+      if ('error' in loaded && loaded.error) return loaded.error
+
+      const { data: coupon } = await sb
+        .from('coupons')
+        .select('*')
+        .ilike('code', code)
+        .maybeSingle()
+
+      if (!coupon) {
+        return err(req, 'Invalid coupon code', 400)
+      }
+
+      const now = new Date()
+      const start = new Date(coupon.start_date)
+      const end = new Date(coupon.end_date)
+
+      if (coupon.status === 'DISABLED' || coupon.status === 'DRAFT') {
+        return err(req, 'This coupon is currently inactive', 400)
+      }
+      if (now < start) {
+        return err(req, 'This coupon is scheduled and not active yet', 400)
+      }
+      if (now > end) {
+        return err(req, 'This coupon has expired', 400)
+      }
+      if (coupon.usage_limit && coupon.usage_count >= coupon.usage_limit) {
+        return err(req, 'This coupon has reached its total usage limit', 400)
+      }
+
+      // Check minimum order value against cart items
+      const items = (loaded.cart.cart_items || []).map((i: any) => ({
+        quantity: i.quantity,
+        product: i.products,
+      }))
+      const preTotals = computeCartTotals(items, settings)
+      if (coupon.min_order_value && preTotals.subtotal < Number(coupon.min_order_value)) {
+        return err(req, `Minimum order value of ₹${coupon.min_order_value} required for this coupon`, 400)
+      }
+
+      // Check if any items in cart are eligible
+      const testTotals = computeCartTotals(items, settings, coupon)
+      if (testTotals.discount <= 0 && testTotals.eligibleSubtotal <= 0) {
+        return err(req, 'None of the items in your cart are eligible for this coupon', 400)
+      }
+
+      // Save coupon to cart
+      await sb
+        .from('carts')
+        .update({ coupon_code: coupon.code, coupon_id: coupon.id })
+        .eq('id', loaded.cart.id)
+
+      const cart = await reloadCart(sb, loaded.cart.id)
+      return json(req, await cartPayload(req, sb, cart))
+    }
+
+    if (match(method, path, 'DELETE', '/cart/coupon')) {
+      const loaded = await requireCart(req, sb)
+      if ('error' in loaded && loaded.error) return loaded.error
+
+      await sb
+        .from('carts')
+        .update({ coupon_code: null, coupon_id: null })
+        .eq('id', loaded.cart.id)
+
+      const cart = await reloadCart(sb, loaded.cart.id)
+      return json(req, await cartPayload(req, sb, cart))
+    }
+
     // ---------- CHECKOUT ----------
     if (match(method, path, 'POST', '/checkout')) {
       const body = await readBody(req)
@@ -977,7 +1105,60 @@ Deno.serve(async (req) => {
 
       const orderId = created.orderId as string
       const orderNumber = created.orderNumber as string
-      const totals = created.totals
+      let totals = created.totals
+
+      // Post-process applied coupon in authoritative manner
+      if (cart.coupon_code) {
+        try {
+          const { data: cp } = await sb
+            .from('coupons')
+            .select('*')
+            .ilike('code', cart.coupon_code)
+            .maybeSingle()
+
+          if (cp) {
+            const calculatedTotals = computeCartTotals(
+              items.map((i: any) => ({ quantity: i.quantity, product: i.products })),
+              settings,
+              cp,
+            )
+
+            if (calculatedTotals.discount > 0) {
+              totals = calculatedTotals
+              // Update order records with coupon discount and code
+              await sb
+                .from('orders')
+                .update({
+                  coupon_id: cp.id,
+                  coupon_code: cp.code,
+                  discount: totals.discount,
+                  tax: totals.tax,
+                  total: totals.total,
+                })
+                .eq('id', orderId)
+
+              // Increment coupon usage count
+              await sb
+                .from('coupons')
+                .update({ usage_count: (cp.usage_count || 0) + 1, updated_at: new Date().toISOString() })
+                .eq('id', cp.id)
+
+              // Record coupon redemption
+              await sb
+                .from('coupon_redemptions')
+                .insert({
+                  coupon_id: cp.id,
+                  order_id: orderId,
+                  customer_id: customerId,
+                  customer_email: email,
+                  discount_amount: totals.discount,
+                })
+            }
+          }
+        } catch (couponProcessingErr) {
+          console.error('Coupon processing non-fatal error:', couponProcessingErr)
+        }
+      }
 
       let payClient: any = { mode: paymentMethod.toLowerCase() }
       if (online) {
@@ -2350,6 +2531,277 @@ Deno.serve(async (req) => {
         if (m) {
           const { error } = await asb
             .from('product_reviews')
+            .delete()
+            .eq('id', m.id)
+
+          if (error) return err(req, error.message, 500)
+          return json(req, { ok: true, deleted: true, id: m.id })
+        }
+      }
+
+      // ---------- ADMIN: COUPONS ----------
+      if (match(method, path, 'GET', '/admin/coupons')) {
+        let query = asb
+          .from('coupons')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (q.status && q.status !== 'ALL') {
+          query = query.eq('status', q.status)
+        }
+        if (q.discountType && q.discountType !== 'ALL') {
+          query = query.eq('discount_type', q.discountType)
+        }
+
+        const { data: coupons, error } = await query
+        if (error) return err(req, error.message, 500)
+
+        let list = coupons || []
+        const now = new Date()
+
+        // Dynamic auto-scheduling status check for display
+        list = list.map((c: any) => {
+          let computedStatus = c.status
+          if (c.status !== 'DISABLED' && c.status !== 'DRAFT') {
+            const start = new Date(c.start_date)
+            const end = new Date(c.end_date)
+            if (now < start) {
+              computedStatus = 'SCHEDULED'
+            } else if (now > end) {
+              computedStatus = 'EXPIRED'
+            } else {
+              computedStatus = 'ACTIVE'
+            }
+          }
+          return {
+            id: c.id,
+            code: c.code,
+            description: c.description,
+            discountType: c.discount_type,
+            discountValue: Number(c.discount_value),
+            startDate: c.start_date,
+            endDate: c.end_date,
+            minOrderValue: Number(c.min_order_value || 0),
+            maxDiscountAmount: c.max_discount_amount != null ? Number(c.max_discount_amount) : null,
+            usageLimit: c.usage_limit != null ? Number(c.usage_limit) : null,
+            usageCount: Number(c.usage_count || 0),
+            perCustomerLimit: Number(c.per_customer_limit || 1),
+            appliesTo: c.applies_to,
+            productIds: Array.isArray(c.product_ids_json) ? c.product_ids_json : [],
+            categoryIds: Array.isArray(c.category_ids_json) ? c.category_ids_json : [],
+            evaluationMode: c.evaluation_mode || 'OR',
+            status: computedStatus,
+            createdAt: c.created_at,
+            updatedAt: c.updated_at,
+          }
+        })
+
+        if (q.search) {
+          const s = String(q.search).toLowerCase()
+          list = list.filter((c: any) => c.code.toLowerCase().includes(s) || (c.description || '').toLowerCase().includes(s))
+        }
+
+        return json(req, { coupons: list })
+      }
+
+      {
+        const m = match(method, path, 'GET', '/admin/coupons/:id')
+        if (m) {
+          const { data: c, error } = await asb
+            .from('coupons')
+            .select('*')
+            .eq('id', m.id)
+            .maybeSingle()
+
+          if (error) return err(req, error.message, 500)
+          if (!c) return err(req, 'Coupon not found', 404)
+
+          return json(req, {
+            coupon: {
+              id: c.id,
+              code: c.code,
+              description: c.description,
+              discountType: c.discount_type,
+              discountValue: Number(c.discount_value),
+              startDate: c.start_date,
+              endDate: c.end_date,
+              minOrderValue: Number(c.min_order_value || 0),
+              maxDiscountAmount: c.max_discount_amount != null ? Number(c.max_discount_amount) : null,
+              usageLimit: c.usage_limit != null ? Number(c.usage_limit) : null,
+              usageCount: Number(c.usage_count || 0),
+              perCustomerLimit: Number(c.per_customer_limit || 1),
+              appliesTo: c.applies_to,
+              productIds: Array.isArray(c.product_ids_json) ? c.product_ids_json : [],
+              categoryIds: Array.isArray(c.category_ids_json) ? c.category_ids_json : [],
+              evaluationMode: c.evaluation_mode || 'OR',
+              status: c.status,
+              createdAt: c.created_at,
+              updatedAt: c.updated_at,
+            },
+          })
+        }
+      }
+
+      if (match(method, path, 'POST', '/admin/coupons')) {
+        const body = await readBody(req)
+        if (!body) return err(req, 'Invalid JSON')
+
+        const code = String(body.code || '').trim().toUpperCase()
+        if (!code || code.length < 2) return err(req, 'Coupon code must be at least 2 characters')
+
+        const discountType = String(body.discountType || 'PERCENTAGE').toUpperCase()
+        if (!['PERCENTAGE', 'FIXED'].includes(discountType)) return err(req, 'Invalid discount type')
+
+        const discountValue = Number(body.discountValue)
+        if (!discountValue || discountValue <= 0) return err(req, 'Discount value must be greater than zero')
+        if (discountType === 'PERCENTAGE' && discountValue > 100) return err(req, 'Percentage discount cannot exceed 100%')
+
+        const startDate = body.startDate ? new Date(body.startDate).toISOString() : new Date().toISOString()
+        const endDate = body.endDate ? new Date(body.endDate).toISOString() : null
+        if (!endDate) return err(req, 'End date and time is required')
+        if (new Date(endDate) <= new Date(startDate)) return err(req, 'End date must be later than start date')
+
+        const appliesTo = String(body.appliesTo || 'ALL').toUpperCase()
+        const productIds = Array.isArray(body.productIds) ? body.productIds : []
+        const categoryIds = Array.isArray(body.categoryIds) ? body.categoryIds : []
+
+        if (appliesTo === 'PRODUCTS' && productIds.length === 0) {
+          return err(req, 'Select at least one product for product-specific coupon')
+        }
+        if (appliesTo === 'CATEGORIES' && categoryIds.length === 0) {
+          return err(req, 'Select at least one category for category-specific coupon')
+        }
+
+        const payload = {
+          code,
+          description: String(body.description || '').trim(),
+          discount_type: discountType,
+          discount_value: discountValue,
+          start_date: startDate,
+          end_date: endDate,
+          min_order_value: Number(body.minOrderValue || 0),
+          max_discount_amount: body.maxDiscountAmount ? Number(body.maxDiscountAmount) : null,
+          usage_limit: body.usageLimit ? Number(body.usageLimit) : null,
+          per_customer_limit: body.perCustomerLimit ? Number(body.perCustomerLimit) : 1,
+          applies_to: appliesTo,
+          product_ids_json: productIds,
+          category_ids_json: categoryIds,
+          evaluation_mode: String(body.evaluationMode || 'OR').toUpperCase(),
+          status: String(body.status || 'ACTIVE').toUpperCase(),
+          updated_at: new Date().toISOString(),
+        }
+
+        const { data: created, error } = await asb
+          .from('coupons')
+          .insert(payload)
+          .select('*')
+          .single()
+
+        if (error) {
+          if (error.message?.includes('duplicate key') || error.code === '23505') {
+            return err(req, 'A coupon with this code already exists', 400)
+          }
+          return err(req, error.message, 500)
+        }
+
+        return json(req, { ok: true, coupon: created })
+      }
+
+      {
+        const m = match(method, path, 'PUT', '/admin/coupons/:id')
+        if (m) {
+          const body = await readBody(req)
+          if (!body) return err(req, 'Invalid JSON')
+
+          const code = String(body.code || '').trim().toUpperCase()
+          if (!code || code.length < 2) return err(req, 'Coupon code must be at least 2 characters')
+
+          const discountType = String(body.discountType || 'PERCENTAGE').toUpperCase()
+          if (!['PERCENTAGE', 'FIXED'].includes(discountType)) return err(req, 'Invalid discount type')
+
+          const discountValue = Number(body.discountValue)
+          if (!discountValue || discountValue <= 0) return err(req, 'Discount value must be greater than zero')
+          if (discountType === 'PERCENTAGE' && discountValue > 100) return err(req, 'Percentage discount cannot exceed 100%')
+
+          const startDate = body.startDate ? new Date(body.startDate).toISOString() : new Date().toISOString()
+          const endDate = body.endDate ? new Date(body.endDate).toISOString() : null
+          if (!endDate) return err(req, 'End date and time is required')
+          if (new Date(endDate) <= new Date(startDate)) return err(req, 'End date must be later than start date')
+
+          const appliesTo = String(body.appliesTo || 'ALL').toUpperCase()
+          const productIds = Array.isArray(body.productIds) ? body.productIds : []
+          const categoryIds = Array.isArray(body.categoryIds) ? body.categoryIds : []
+
+          if (appliesTo === 'PRODUCTS' && productIds.length === 0) {
+            return err(req, 'Select at least one product for product-specific coupon')
+          }
+          if (appliesTo === 'CATEGORIES' && categoryIds.length === 0) {
+            return err(req, 'Select at least one category for category-specific coupon')
+          }
+
+          const payload = {
+            code,
+            description: String(body.description || '').trim(),
+            discount_type: discountType,
+            discount_value: discountValue,
+            start_date: startDate,
+            end_date: endDate,
+            min_order_value: Number(body.minOrderValue || 0),
+            max_discount_amount: body.maxDiscountAmount ? Number(body.maxDiscountAmount) : null,
+            usage_limit: body.usageLimit ? Number(body.usageLimit) : null,
+            per_customer_limit: body.perCustomerLimit ? Number(body.perCustomerLimit) : 1,
+            applies_to: appliesTo,
+            product_ids_json: productIds,
+            category_ids_json: categoryIds,
+            evaluation_mode: String(body.evaluationMode || 'OR').toUpperCase(),
+            status: String(body.status || 'ACTIVE').toUpperCase(),
+            updated_at: new Date().toISOString(),
+          }
+
+          const { data: updated, error } = await asb
+            .from('coupons')
+            .update(payload)
+            .eq('id', m.id)
+            .select('*')
+            .single()
+
+          if (error) {
+            if (error.message?.includes('duplicate key') || error.code === '23505') {
+              return err(req, 'A coupon with this code already exists', 400)
+            }
+            return err(req, error.message, 500)
+          }
+
+          return json(req, { ok: true, coupon: updated })
+        }
+      }
+
+      {
+        const m = match(method, path, 'PATCH', '/admin/coupons/:id/status')
+        if (m) {
+          const body = await readBody(req)
+          const status = String(body?.status || '').toUpperCase()
+          if (!['DRAFT', 'SCHEDULED', 'ACTIVE', 'EXPIRED', 'DISABLED'].includes(status)) {
+            return err(req, 'Invalid status')
+          }
+
+          const { data: updated, error } = await asb
+            .from('coupons')
+            .update({ status, updated_at: new Date().toISOString() })
+            .eq('id', m.id)
+            .select('*')
+            .single()
+
+          if (error) return err(req, error.message, 500)
+          return json(req, { ok: true, coupon: updated })
+        }
+      }
+
+      {
+        const m = match(method, path, 'DELETE', '/admin/coupons/:id')
+        if (m) {
+          const { error } = await asb
+            .from('coupons')
             .delete()
             .eq('id', m.id)
 

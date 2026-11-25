@@ -2,13 +2,16 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, inr } from '../../../models/api'
 import { PAYMENT_METHODS } from '../../../config/paymentMethods'
-import { ShieldCheck, Truck, CreditCard, CheckCircle2, Lock } from 'lucide-react'
+import { ShieldCheck, Truck, CreditCard, CheckCircle2, Lock, Tag, X, AlertCircle } from 'lucide-react'
 
 export default function CheckoutPage() {
   const navigate = useNavigate()
   const [cart, setCart] = useState(null)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
+  const [couponCode, setCouponCode] = useState('')
+  const [couponLoading, setCouponLoading] = useState(false)
+  const [couponFeedback, setCouponFeedback] = useState(null)
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -52,6 +55,39 @@ export default function CheckoutPage() {
 
   const set = (k) => (e) =>
     setForm((f) => ({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
+
+  const handleApplyCoupon = async (e) => {
+    e.preventDefault()
+    if (!couponCode.trim()) return
+    setCouponLoading(true)
+    setCouponFeedback(null)
+    try {
+      const res = await api.applyCoupon(couponCode.trim())
+      setCart(res)
+      setCouponFeedback({ type: 'success', message: `Coupon "${couponCode.trim().toUpperCase()}" applied!` })
+      setCouponCode('')
+      window.dispatchEvent(new Event('invi-cart'))
+    } catch (ex) {
+      setCouponFeedback({ type: 'error', message: ex.message || 'Failed to apply coupon' })
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  const handleRemoveCoupon = async () => {
+    setCouponLoading(true)
+    setCouponFeedback(null)
+    try {
+      const res = await api.removeCoupon()
+      setCart(res)
+      setCouponFeedback({ type: 'success', message: 'Coupon removed' })
+      window.dispatchEvent(new Event('invi-cart'))
+    } catch (ex) {
+      setCouponFeedback({ type: 'error', message: ex.message || 'Failed to remove coupon' })
+    } finally {
+      setCouponLoading(false)
+    }
+  }
 
   const handlePay = async (e) => {
     e.preventDefault()
@@ -296,6 +332,68 @@ export default function CheckoutPage() {
               ))}
             </div>
 
+            {/* Applied Coupon / Coupon Box */}
+            <div className="pt-3 border-t border-slate-100 space-y-2">
+              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5 uppercase tracking-wide">
+                <Tag size={13} className="text-[#f97316]" />
+                <span>Promo / Coupon Code</span>
+              </label>
+
+              {cart?.coupon ? (
+                <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
+                    <div>
+                      <span className="font-mono font-bold tracking-wider">{cart.coupon.code}</span>
+                      <span className="text-[10px] text-emerald-600 block">
+                        Saved {inr(totals.discount)}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveCoupon}
+                    disabled={couponLoading}
+                    className="p-1 rounded hover:bg-emerald-100 text-emerald-700 hover:text-emerald-900 transition-colors"
+                    title="Remove coupon"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    placeholder="Coupon code"
+                    className="flex-1 px-3 py-1.5 text-xs uppercase font-mono rounded-lg border border-slate-300 bg-white text-slate-900 outline-none focus:border-[#f97316] placeholder:normal-case placeholder:font-sans placeholder:text-slate-400 shadow-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    disabled={couponLoading || !couponCode.trim()}
+                    className="px-3 py-1.5 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {couponLoading ? 'Checking…' : 'Apply'}
+                  </button>
+                </div>
+              )}
+
+              {couponFeedback && (
+                <div
+                  className={`text-[11px] p-2 rounded flex items-center gap-1.5 ${
+                    couponFeedback.type === 'success'
+                      ? 'text-emerald-700 bg-emerald-50 border border-emerald-100'
+                      : 'text-red-600 bg-red-50 border border-red-100'
+                  }`}
+                >
+                  {couponFeedback.type === 'success' ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
+                  <span>{couponFeedback.message}</span>
+                </div>
+              )}
+            </div>
+
             {/* Calculations */}
             <div className="pt-3 border-t border-slate-100 space-y-2 text-xs text-slate-600">
               <div className="flex justify-between">
@@ -304,7 +402,14 @@ export default function CheckoutPage() {
               </div>
               {totals.discount > 0 && (
                 <div className="flex justify-between text-emerald-600 font-semibold">
-                  <span>Discount</span>
+                  <span className="flex items-center gap-1">
+                    <span>Discount</span>
+                    {cart?.coupon?.code && (
+                      <span className="font-mono text-[10px] bg-emerald-100 px-1 py-0.5 rounded text-emerald-800">
+                        ({cart.coupon.code})
+                      </span>
+                    )}
+                  </span>
                   <span>-{inr(totals.discount)}</span>
                 </div>
               )}

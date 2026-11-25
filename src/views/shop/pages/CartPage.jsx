@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, inr } from '../../../models/api'
-import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, ShieldCheck, Truck, ChevronRight } from 'lucide-react'
+import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, ShieldCheck, Truck, ChevronRight, Tag, X, CheckCircle2, AlertCircle } from 'lucide-react'
 
 const FREE_SHIPPING_THRESHOLD = 999
 
@@ -9,6 +9,9 @@ export default function CartPage() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState(null)
+  const [couponCode, setCouponCode] = useState('')
+  const [couponLoading, setCouponLoading] = useState(false)
+  const [couponFeedback, setCouponFeedback] = useState(null)
   const navigate = useNavigate()
 
   const load = async () => {
@@ -45,6 +48,39 @@ export default function CartPage() {
       /* ignore */
     } finally {
       setUpdatingId(null)
+    }
+  }
+
+  const handleApplyCoupon = async (e) => {
+    e.preventDefault()
+    if (!couponCode.trim()) return
+    setCouponLoading(true)
+    setCouponFeedback(null)
+    try {
+      const res = await api.applyCoupon(couponCode.trim())
+      setData(res)
+      setCouponFeedback({ type: 'success', message: `Coupon "${couponCode.trim().toUpperCase()}" applied!` })
+      setCouponCode('')
+      window.dispatchEvent(new Event('invi-cart'))
+    } catch (err) {
+      setCouponFeedback({ type: 'error', message: err.message || 'Failed to apply coupon' })
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  const handleRemoveCoupon = async () => {
+    setCouponLoading(true)
+    setCouponFeedback(null)
+    try {
+      const res = await api.removeCoupon()
+      setData(res)
+      setCouponFeedback({ type: 'success', message: 'Coupon removed' })
+      window.dispatchEvent(new Event('invi-cart'))
+    } catch (err) {
+      setCouponFeedback({ type: 'error', message: err.message || 'Failed to remove coupon' })
+    } finally {
+      setCouponLoading(false)
     }
   }
 
@@ -227,6 +263,67 @@ export default function CartPage() {
 
           {/* Right Price Details Summary */}
           <aside className="lg:col-span-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-5 sticky top-36">
+            {/* Coupon Code Section */}
+            <div className="space-y-2 pb-4 border-b border-slate-100">
+              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5 uppercase tracking-wide">
+                <Tag size={14} className="text-[#f97316]" />
+                <span>Apply Discount Coupon</span>
+              </label>
+
+              {data?.coupon ? (
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                    <div>
+                      <span className="font-mono font-bold tracking-wider">{data.coupon.code}</span>
+                      <span className="text-[11px] text-emerald-600 block">
+                        Saved {inr(totals.discount)}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRemoveCoupon}
+                    disabled={couponLoading}
+                    className="p-1 rounded hover:bg-emerald-100 text-emerald-700 hover:text-emerald-900 transition-colors"
+                    title="Remove coupon"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    placeholder="Enter coupon code"
+                    className="flex-1 px-3 py-2 text-xs uppercase font-mono rounded-lg border border-slate-300 bg-white text-slate-900 outline-none focus:border-[#f97316] placeholder:normal-case placeholder:font-sans placeholder:text-slate-400 shadow-sm"
+                  />
+                  <button
+                    type="submit"
+                    disabled={couponLoading || !couponCode.trim()}
+                    className="px-3.5 py-2 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {couponLoading ? 'Checking…' : 'Apply'}
+                  </button>
+                </form>
+              )}
+
+              {couponFeedback && (
+                <div
+                  className={`text-[11px] p-2 rounded flex items-center gap-1.5 ${
+                    couponFeedback.type === 'success'
+                      ? 'text-emerald-700 bg-emerald-50 border border-emerald-100'
+                      : 'text-red-600 bg-red-50 border border-red-100'
+                  }`}
+                >
+                  {couponFeedback.type === 'success' ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
+                  <span>{couponFeedback.message}</span>
+                </div>
+              )}
+            </div>
+
             <h2 className="text-base font-extrabold text-slate-900 pb-3 border-b border-slate-100 uppercase tracking-wide">
               Price Details
             </h2>
@@ -238,7 +335,14 @@ export default function CartPage() {
               </div>
               {totals.discount > 0 && (
                 <div className="flex justify-between text-emerald-600 font-semibold">
-                  <span>Discount</span>
+                  <span className="flex items-center gap-1">
+                    <span>Discount</span>
+                    {data?.coupon?.code && (
+                      <span className="font-mono text-[10px] bg-emerald-100 px-1 py-0.5 rounded text-emerald-800">
+                        ({data.coupon.code})
+                      </span>
+                    )}
+                  </span>
                   <span>-{inr(totals.discount)}</span>
                 </div>
               )}

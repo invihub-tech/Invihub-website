@@ -8,6 +8,7 @@ import {
   Warehouse,
   ClipboardList,
   Star,
+  Tag,
   LogOut,
 } from 'lucide-react'
 import { api } from '../../../models/api'
@@ -57,6 +58,7 @@ export default function AdminShell() {
           {item(`${adminBase}/categories`, 'Categories', FolderTree)}
           {item(`${adminBase}/orders`, 'Orders', ShoppingBag)}
           {item(`${adminBase}/inventory`, 'Inventory', Warehouse)}
+          {item(`${adminBase}/coupons`, 'Discount Coupons', Tag)}
           {item(`${adminBase}/reviews`, 'Product Reviews', Star)}
           {item(`${adminBase}/custom-requests`, 'Custom Requests', ClipboardList)}
         </nav>
