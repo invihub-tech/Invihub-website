@@ -452,6 +452,12 @@ export const api = {
 
             if (fil) {
               const currentStock = Number(fil.stock_spools || 0)
+              if (currentStock < qty) {
+                throw new ApiError(
+                  `Color "${variation.colorName || 'Selected color'}" is currently out of stock. Please update your cart.`,
+                  400
+                )
+              }
               const newStock = Math.max(0, currentStock - qty)
               await supabase
                 .from('filaments')
@@ -1308,19 +1314,18 @@ export const api = {
         .from('product_filament_variations')
         .select('*, filament:filaments(*)')
         .eq('product_id', productId)
-        .eq('is_available', true)
         .order('created_at', { ascending: true })
 
       if (error) return []
 
       return (data || [])
-        .filter((pv) => pv.filament && pv.filament.is_active)
+        .filter((pv) => pv.filament)
         .map((pv) => ({
           id: pv.id,
           productId: pv.product_id,
           filamentId: pv.filament_id,
           priceAdjustment: Number(pv.price_adjustment || 0),
-          isAvailable: Boolean(pv.is_available),
+          isAvailable: Boolean(pv.is_available && pv.filament?.is_active !== false),
           filament: mapFilament(pv.filament),
         }))
     }

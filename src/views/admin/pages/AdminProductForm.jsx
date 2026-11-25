@@ -597,14 +597,15 @@ export default function AdminProductForm() {
       </div>
 
       {/* ── FILAMENT VARIATIONS SECTION ── */}
+      {/* Assigned Colors Section */}
       <div className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
             <div className="text-xs uppercase tracking-wider text-[#c5a059] font-bold flex items-center gap-2">
-              <Disc size={15} /> Filament Variations
+              <Disc size={15} /> Assigned Colors
             </div>
             <p className="text-[11px] text-white/50 mt-0.5">
-              Assign available filament inventory records as selectable variations for this product.
+              Assign colors from filament inventory to make them available for this product.
             </p>
           </div>
           <Link
@@ -623,12 +624,12 @@ export default function AdminProductForm() {
             onChange={(e) => setSelectedFilamentToAdd(e.target.value)}
             className="field-input h-9 flex-1 min-w-[240px] bg-black text-xs text-white border-white/20"
           >
-            <option value="">-- Choose filament from inventory to assign --</option>
+            <option value="">-- Choose color to assign --</option>
             {allFilaments.map((f) => {
               const already = filamentVariations.some((v) => (v.filamentId || v.filament_id) === f.id)
               return (
                 <option key={f.id} value={f.id} disabled={already}>
-                  {f.material} - {f.colorName} ({f.diameter}mm, {f.weightGrams >= 1000 ? `${f.weightGrams / 1000}kg` : `${f.weightGrams}g`}) - {f.stockSpools} spools in stock {already ? '(Assigned)' : ''}
+                  ● {f.colorName} {already ? '(Assigned)' : ''}
                 </option>
               )
             })}
@@ -639,86 +640,38 @@ export default function AdminProductForm() {
             disabled={!selectedFilamentToAdd}
             className="inline-flex items-center gap-1.5 rounded-md bg-[#c5a059] px-3.5 py-2 text-xs font-semibold text-black hover:bg-[#d4b069] disabled:opacity-40 transition-colors"
           >
-            <Plus size={14} /> Assign Filament
+            <Plus size={14} /> Assign Color
           </button>
         </div>
 
-        {/* Variations List */}
+        {/* Assigned Colors List */}
         {filamentVariations.length === 0 ? (
           <div className="rounded-md border border-dashed border-white/10 p-5 text-center text-xs text-white/40">
-            No filament variations assigned yet. Select a filament above to assign it to this product, or leave empty if this product does not have filament options.
+            No colors assigned yet. Select a color above to assign it to this product, or leave empty if this product does not have color options.
           </div>
         ) : (
-          <div className="space-y-2.5 pt-1">
+          <div className="flex flex-wrap gap-2 pt-1">
             {filamentVariations.map((v) => {
               const filId = v.filamentId || v.filament_id
               const fil = v.filament || allFilaments.find((f) => f.id === filId)
               return (
                 <div
                   key={filId}
-                  className="rounded-lg border border-white/10 bg-black/40 p-3 flex flex-col md:flex-row md:items-center justify-between gap-3"
+                  className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-black/60 px-3 py-2 text-xs text-white shadow-sm"
                 >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="h-5 w-5 rounded-full border border-white/20 shrink-0 shadow-inner"
-                      style={{ backgroundColor: fil?.colorHex || '#000000' }}
-                    />
-                    <div>
-                      <div className="text-xs font-semibold text-white flex items-center gap-2">
-                        <span>{fil?.name || 'Filament'}</span>
-                        <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-mono text-[#c5a059]">
-                          {fil?.material}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-white/50 flex flex-wrap items-center gap-2 mt-0.5">
-                        <span>Color: <strong>{fil?.colorName}</strong></span>
-                        <span>•</span>
-                        <span>{fil?.diameter} mm</span>
-                        <span>•</span>
-                        <span>{fil?.weightGrams >= 1000 ? `${fil.weightGrams / 1000} kg` : `${fil.weightGrams} g`}</span>
-                        <span>•</span>
-                        <span className={fil?.stockSpools > 0 ? 'text-emerald-400 font-medium' : 'text-red-400 font-medium'}>
-                          {fil?.stockSpools > 0 ? `${fil?.stockSpools} spools in stock` : 'Out of stock'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3 self-end md:self-auto">
-                    <div className="flex items-center gap-1.5 text-xs text-white/70">
-                      <span className="text-[11px] text-white/40">Price Adj:</span>
-                      <div className="relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-white/40 text-xs">₹</span>
-                        <input
-                          type="number"
-                          step="10"
-                          value={v.priceAdjustment}
-                          onChange={(e) => updateFilamentVariation(filId, 'priceAdjustment', Number(e.target.value))}
-                          className="field-input h-8 w-24 pl-5 pr-2 text-xs bg-black text-white border-white/15"
-                          placeholder="0"
-                        />
-                      </div>
-                    </div>
-
-                    <label className="flex items-center gap-1.5 text-xs text-white/70 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={v.isAvailable}
-                        onChange={(e) => updateFilamentVariation(filId, 'isAvailable', e.target.checked)}
-                        className="rounded border-white/20 bg-black text-[#c5a059] focus:ring-[#c5a059]"
-                      />
-                      <span>Active</span>
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={() => removeFilamentVariation(filId)}
-                      className="rounded border border-red-500/20 bg-red-500/10 p-1.5 text-xs text-red-400 hover:bg-red-500/20"
-                      title="Remove variation"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
+                  <span
+                    className="h-3.5 w-3.5 rounded-full border border-white/20 shrink-0 shadow-inner"
+                    style={{ backgroundColor: fil?.colorHex || '#000000' }}
+                  />
+                  <span className="font-medium text-white">{fil?.colorName || 'Color'}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeFilamentVariation(filId)}
+                    className="ml-1 text-white/40 hover:text-red-400 p-0.5 rounded transition-colors"
+                    title="Remove color"
+                  >
+                    <X size={14} />
+                  </button>
                 </div>
               )
             })}
