@@ -6,6 +6,7 @@ import {
   FolderTree,
   ShoppingBag,
   Warehouse,
+  Layers,
   ClipboardList,
   Star,
   Tag,
@@ -58,6 +59,7 @@ export default function AdminShell() {
           {item(`${adminBase}/categories`, 'Categories', FolderTree)}
           {item(`${adminBase}/orders`, 'Orders', ShoppingBag)}
           {item(`${adminBase}/inventory`, 'Inventory', Warehouse)}
+          {item(`${adminBase}/filaments`, 'Filament Entry', Layers)}
           {item(`${adminBase}/coupons`, 'Discount Coupons', Tag)}
           {item(`${adminBase}/reviews`, 'Product Reviews', Star)}
           {item(`${adminBase}/custom-requests`, 'Custom Requests', ClipboardList)}
