@@ -136,7 +136,7 @@ export default function ProductDetail() {
           }
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setReviewsLoading(false))
   }
 
@@ -172,7 +172,7 @@ export default function ProductDetail() {
               setSelectedVariationId(null)
             }
           })
-          .catch(() => {})
+          .catch(() => { })
       })
       .catch((e) => setPageStatus(e.status ?? 500))
   }
@@ -197,7 +197,7 @@ export default function ProductDetail() {
           }))
         }
       })
-      .catch(() => {})
+      .catch(() => { })
   }, [])
 
   const handleReviewSubmit = async (e) => {
@@ -318,7 +318,7 @@ export default function ProductDetail() {
           if (!latestFil || (latestFil.stock_spools || 0) <= 0 || !latestFil.is_active) {
             setErr(`"${activeVariation.filament?.colorName || 'Selected color'}" is out of stock`)
             const targetId = p?.id || slug
-            api.productFilamentVariations(targetId).then((vars) => setFilamentVariations(vars || [])).catch(() => {})
+            api.productFilamentVariations(targetId).then((vars) => setFilamentVariations(vars || [])).catch(() => { })
             return
           }
         }
@@ -335,7 +335,7 @@ export default function ProductDetail() {
             priceAdjustment: activeVariation.priceAdjustment,
           }
           localStorage.setItem('invihub_cart_variations', JSON.stringify(stored))
-        } catch (_) {}
+        } catch (_) { }
       }
       await api.addToCart(p.id, qty)
       window.dispatchEvent(new Event('invi-cart'))
@@ -367,7 +367,7 @@ export default function ProductDetail() {
           if (!latestFil || (latestFil.stock_spools || 0) <= 0 || !latestFil.is_active) {
             setErr(`"${activeVariation.filament?.colorName || 'Selected color'}" is out of stock`)
             const targetId = p?.id || slug
-            api.productFilamentVariations(targetId).then((vars) => setFilamentVariations(vars || [])).catch(() => {})
+            api.productFilamentVariations(targetId).then((vars) => setFilamentVariations(vars || [])).catch(() => { })
             return
           }
         }
@@ -384,7 +384,7 @@ export default function ProductDetail() {
             priceAdjustment: activeVariation.priceAdjustment,
           }
           localStorage.setItem('invihub_cart_variations', JSON.stringify(stored))
-        } catch (_) {}
+        } catch (_) { }
       }
       await api.addToCart(p.id, qty)
       window.dispatchEvent(new Event('invi-cart'))
@@ -498,11 +498,10 @@ export default function ProductDetail() {
                     key={im.id || im.url + i}
                     type="button"
                     onClick={() => setActiveImg(i)}
-                    className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 p-1.5 bg-slate-50 transition-all shrink-0 flex items-center justify-center overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#f97316] ${
-                      i === activeImg
-                        ? 'border-[#f97316] ring-2 ring-orange-200 shadow-sm opacity-100'
-                        : 'border-slate-200 hover:border-slate-300 opacity-70 hover:opacity-100'
-                    }`}
+                    className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 p-1.5 bg-slate-50 transition-all shrink-0 flex items-center justify-center overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#f97316] ${i === activeImg
+                      ? 'border-[#f97316] ring-2 ring-orange-200 shadow-sm opacity-100'
+                      : 'border-slate-200 hover:border-slate-300 opacity-70 hover:opacity-100'
+                      }`}
                     aria-label={`View product image ${i + 1}`}
                   >
                     <img
@@ -629,19 +628,17 @@ export default function ProductDetail() {
                           setErr('')
                         }
                       }}
-                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-                        !inStock
-                          ? 'opacity-40 cursor-not-allowed bg-slate-100/70 border-slate-200 text-slate-400'
-                          : isSelected
+                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${!inStock
+                        ? 'opacity-40 cursor-not-allowed bg-slate-100/70 border-slate-200 text-slate-400'
+                        : isSelected
                           ? 'bg-orange-50 border-[#f97316] text-[#f97316] ring-1 ring-[#f97316] shadow-2xs font-semibold cursor-pointer'
                           : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer'
-                      }`}
+                        }`}
                       title={inStock ? fil?.colorName : `${fil?.colorName} (Out of stock)`}
                     >
                       <span
-                        className={`w-3.5 h-3.5 rounded-full border shrink-0 relative overflow-hidden ${
-                          inStock ? 'border-slate-300 shadow-inner' : 'border-slate-300 opacity-60'
-                        }`}
+                        className={`w-3.5 h-3.5 rounded-full border shrink-0 relative overflow-hidden ${inStock ? 'border-slate-300 shadow-inner' : 'border-slate-300 opacity-60'
+                          }`}
                         style={{ backgroundColor: fil?.colorHex || '#111827' }}
                       >
                         {!inStock && (
@@ -770,9 +767,8 @@ export default function ProductDetail() {
 
             <div className="pt-4">
               <div
-                className={`flex items-center gap-1.5 text-xs font-bold ${
-                  isItemInStock ? 'text-emerald-600' : 'text-red-500'
-                }`}
+                className={`flex items-center gap-1.5 text-xs font-bold ${isItemInStock ? 'text-emerald-600' : 'text-red-500'
+                  }`}
               >
                 {isItemInStock ? (
                   <>
@@ -786,8 +782,8 @@ export default function ProductDetail() {
                       {hasFilamentVariations && !hasAnyInStock
                         ? 'Out of Stock (All colors unavailable)'
                         : hasFilamentVariations && !activeVariation
-                        ? 'Please select an available color'
-                        : 'Out of Stock'}
+                          ? 'Please select an available color'
+                          : 'Out of Stock'}
                     </span>
                   </>
                 )}
@@ -806,9 +802,8 @@ export default function ProductDetail() {
               type="button"
               disabled={!isItemInStock || adding}
               onClick={handleAddToCart}
-              className={`btn-shop-outline py-3.5 text-xs font-bold gap-2 ${
-                added ? '!border-emerald-500 !text-emerald-600 !bg-emerald-50' : ''
-              }`}
+              className={`btn-shop-outline py-3.5 text-xs font-bold gap-2 ${added ? '!border-emerald-500 !text-emerald-600 !bg-emerald-50' : ''
+                }`}
             >
               {added ? (
                 <>
@@ -837,11 +832,10 @@ export default function ProductDetail() {
           {/* Customization CTA */}
           {p.allowCustomization && (
             <Link
-              to={`/shop/customize?product=${p.slug}${
-                Object.keys(selectedPartColors).length > 0
-                  ? `&parts=${encodeURIComponent(JSON.stringify(selectedPartColors))}`
-                  : ''
-              }`}
+              to={`/shop/customize?product=${p.slug}${Object.keys(selectedPartColors).length > 0
+                ? `&parts=${encodeURIComponent(JSON.stringify(selectedPartColors))}`
+                : ''
+                }`}
               className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-orange-400/40 bg-orange-50 px-4 py-3 text-xs font-bold text-orange-700 hover:border-orange-500 hover:bg-orange-100 transition"
             >
               <Wrench size={15} />
@@ -852,15 +846,14 @@ export default function ProductDetail() {
           {/* Trust Guarantees — Only displayed if configured for this product */}
           {activeBadges.length > 0 && (
             <div
-              className={`grid gap-3 pt-4 border-t border-slate-100 text-center text-xs text-slate-600 ${
-                activeBadges.length === 1
-                  ? 'grid-cols-1'
-                  : activeBadges.length === 2
+              className={`grid gap-3 pt-4 border-t border-slate-100 text-center text-xs text-slate-600 ${activeBadges.length === 1
+                ? 'grid-cols-1'
+                : activeBadges.length === 2
                   ? 'grid-cols-2'
                   : activeBadges.length === 3
-                  ? 'grid-cols-3'
-                  : 'grid-cols-2 sm:grid-cols-4'
-              }`}
+                    ? 'grid-cols-3'
+                    : 'grid-cols-2 sm:grid-cols-4'
+                }`}
             >
               {activeBadges.map((badge) => {
                 const IconComponent = badge.icon
@@ -890,9 +883,8 @@ export default function ProductDetail() {
                 </span>
                 <ChevronDown
                   size={18}
-                  className={`text-slate-500 transition-transform duration-200 ${
-                    openSections.description ? 'rotate-180' : ''
-                  }`}
+                  className={`text-slate-500 transition-transform duration-200 ${openSections.description ? 'rotate-180' : ''
+                    }`}
                 />
               </button>
               {openSections.description && (
@@ -932,9 +924,8 @@ export default function ProductDetail() {
                 </span>
                 <ChevronDown
                   size={18}
-                  className={`text-slate-500 transition-transform duration-200 ${
-                    openSections.specifications ? 'rotate-180' : ''
-                  }`}
+                  className={`text-slate-500 transition-transform duration-200 ${openSections.specifications ? 'rotate-180' : ''
+                    }`}
                 />
               </button>
               {openSections.specifications && (
@@ -978,9 +969,8 @@ export default function ProductDetail() {
                   </span>
                   <ChevronDown
                     size={18}
-                    className={`text-slate-500 transition-transform duration-200 ${
-                      openSections.printing ? 'rotate-180' : ''
-                    }`}
+                    className={`text-slate-500 transition-transform duration-200 ${openSections.printing ? 'rotate-180' : ''
+                      }`}
                   />
                 </button>
                 {openSections.printing && (
@@ -1037,9 +1027,8 @@ export default function ProductDetail() {
                 </span>
                 <ChevronDown
                   size={18}
-                  className={`text-slate-500 transition-transform duration-200 ${
-                    openSections.shipping ? 'rotate-180' : ''
-                  }`}
+                  className={`text-slate-500 transition-transform duration-200 ${openSections.shipping ? 'rotate-180' : ''
+                    }`}
                 />
               </button>
               {openSections.shipping && (
@@ -1073,9 +1062,8 @@ export default function ProductDetail() {
                 </span>
                 <ChevronDown
                   size={18}
-                  className={`text-slate-500 transition-transform duration-200 ${
-                    openSections.faqs ? 'rotate-180' : ''
-                  }`}
+                  className={`text-slate-500 transition-transform duration-200 ${openSections.faqs ? 'rotate-180' : ''
+                    }`}
                 />
               </button>
               {openSections.faqs && (
@@ -1280,10 +1268,10 @@ export default function ProductDetail() {
                       <span className="text-[11px] text-slate-400 font-medium">
                         {r.createdAt
                           ? new Date(r.createdAt).toLocaleDateString('en-IN', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                            })
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })
                           : ''}
                       </span>
                     </div>
@@ -1362,11 +1350,10 @@ export default function ProductDetail() {
 
             {reviewFeedback && (
               <div
-                className={`p-3 rounded-lg text-xs flex items-center gap-2 ${
-                  reviewFeedback.type === 'success'
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : 'bg-red-50 text-red-800 border border-red-200'
-                }`}
+                className={`p-3 rounded-lg text-xs flex items-center gap-2 ${reviewFeedback.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                  : 'bg-red-50 text-red-800 border border-red-200'
+                  }`}
               >
                 {reviewFeedback.type === 'success' ? (
                   <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
@@ -1412,7 +1399,7 @@ export default function ProductDetail() {
                   <span className="text-xs font-semibold text-slate-600 ml-2">
                     {
                       ['', '1 - Poor', '2 - Fair', '3 - Good', '4 - Very Good', '5 - Excellent'][
-                        reviewHoverRating || reviewForm.rating
+                      reviewHoverRating || reviewForm.rating
                       ]
                     }
                   </span>
