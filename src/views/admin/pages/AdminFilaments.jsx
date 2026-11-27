@@ -300,18 +300,24 @@ export default function AdminFilaments() {
         <div className="relative flex-1 min-w-[240px] max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
           <input
+            id="filament-search"
+            name="filamentSearch"
             type="text"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search material, color, SKU, supplier..."
             className="field-input h-10 w-full pl-9 pr-3 text-sm bg-black border-white/15 focus:border-[#c5a059]"
+            aria-label="Search material, color, SKU, supplier"
           />
         </div>
 
         <select
+          id="filament-material-filter"
+          name="filamentMaterialFilter"
           value={materialFilter}
           onChange={(e) => setMaterialFilter(e.target.value)}
           className="field-input h-10 w-auto bg-black text-sm border-white/15"
+          aria-label="Filter by material"
         >
           {MATERIALS.map((m) => (
             <option key={m} value={m}>
@@ -321,9 +327,12 @@ export default function AdminFilaments() {
         </select>
 
         <select
+          id="filament-status-filter"
+          name="filamentStatusFilter"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           className="field-input h-10 w-auto bg-black text-sm border-white/15"
+          aria-label="Filter by stock status"
         >
           <option value="ALL">All Status</option>
           <option value="HEALTHY">Healthy Stock</option>
@@ -488,10 +497,12 @@ export default function AdminFilaments() {
             <form onSubmit={handleSaveFilament} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2">
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
+                  <label htmlFor="filament-form-name" className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
                     Filament Name *
                   </label>
                   <input
+                    id="filament-form-name"
+                    name="name"
                     type="text"
                     required
                     value={form.name}
@@ -502,10 +513,12 @@ export default function AdminFilaments() {
                 </div>
 
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
+                  <label htmlFor="filament-form-material" className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
                     Material Type *
                   </label>
                   <select
+                    id="filament-form-material"
+                    name="material"
                     value={form.material}
                     onChange={(e) => setForm({ ...form, material: e.target.value })}
                     className="field-input w-full bg-black text-white border-white/15"
@@ -519,10 +532,12 @@ export default function AdminFilaments() {
                 </div>
 
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
+                  <label htmlFor="filament-form-diameter" className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
                     Diameter (mm) *
                   </label>
                   <select
+                    id="filament-form-diameter"
+                    name="diameter"
                     value={form.diameter}
                     onChange={(e) => setForm({ ...form, diameter: Number(e.target.value) })}
                     className="field-input w-full bg-black text-white border-white/15"
@@ -536,10 +551,12 @@ export default function AdminFilaments() {
                 </div>
 
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
+                  <label htmlFor="filament-form-color-name" className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
                     Color Name *
                   </label>
                   <input
+                    id="filament-form-color-name"
+                    name="colorName"
                     type="text"
                     required
                     value={form.colorName}
@@ -550,17 +567,21 @@ export default function AdminFilaments() {
                 </div>
 
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
+                  <label htmlFor="filament-form-color-hex" className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
                     Color Hex Code
                   </label>
                   <div className="flex items-center gap-2">
                     <input
+                      id="filament-form-color-picker"
+                      name="colorPicker"
                       type="color"
                       value={form.colorHex}
                       onChange={(e) => setForm({ ...form, colorHex: e.target.value })}
                       className="h-10 w-12 cursor-pointer rounded border border-white/20 bg-transparent p-1"
                     />
                     <input
+                      id="filament-form-color-hex"
+                      name="colorHex"
                       type="text"
                       value={form.colorHex}
                       onChange={(e) => setForm({ ...form, colorHex: e.target.value })}
@@ -571,10 +592,12 @@ export default function AdminFilaments() {
                 </div>
 
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
+                  <label htmlFor="filament-form-weight-grams" className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
                     Spool Weight (Grams) *
                   </label>
                   <input
+                    id="filament-form-weight-grams"
+                    name="weightGrams"
                     type="number"
                     min="50"
                     step="50"
@@ -591,10 +614,12 @@ export default function AdminFilaments() {
 
                 {!editItem && (
                   <div>
-                    <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
+                    <label htmlFor="filament-form-stock-spools" className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
                       Initial Stock (Spools)
                     </label>
                     <input
+                      id="filament-form-stock-spools"
+                      name="stockSpools"
                       type="number"
                       min="0"
                       value={form.stockSpools}
@@ -608,10 +633,12 @@ export default function AdminFilaments() {
                 )}
 
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
+                  <label htmlFor="filament-form-sku" className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
                     SKU / Inventory Code
                   </label>
                   <input
+                    id="filament-form-sku"
+                    name="sku"
                     type="text"
                     value={form.sku}
                     onChange={(e) => setForm({ ...form, sku: e.target.value })}
@@ -621,10 +648,12 @@ export default function AdminFilaments() {
                 </div>
 
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
+                  <label htmlFor="filament-form-supplier" className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
                     Supplier / Brand
                   </label>
                   <input
+                    id="filament-form-supplier"
+                    name="supplier"
                     type="text"
                     value={form.supplier}
                     onChange={(e) => setForm({ ...form, supplier: e.target.value })}
@@ -634,10 +663,12 @@ export default function AdminFilaments() {
                 </div>
 
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
+                  <label htmlFor="filament-form-cost-per-spool" className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
                     Cost Per Spool (Admin only ₹)
                   </label>
                   <input
+                    id="filament-form-cost-per-spool"
+                    name="costPerSpool"
                     type="number"
                     min="0"
                     step="1"
@@ -649,10 +680,12 @@ export default function AdminFilaments() {
                 </div>
 
                 <div>
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
+                  <label htmlFor="filament-form-low-stock-threshold" className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
                     Low Stock Threshold (Spools)
                   </label>
                   <input
+                    id="filament-form-low-stock-threshold"
+                    name="lowStockThreshold"
                     type="number"
                     min="1"
                     value={form.lowStockThreshold}
@@ -663,10 +696,12 @@ export default function AdminFilaments() {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
+                  <label htmlFor="filament-form-notes" className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
                     Internal Notes / Print Specs
                   </label>
                   <textarea
+                    id="filament-form-notes"
+                    name="notes"
                     rows={2}
                     value={form.notes}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -767,7 +802,7 @@ export default function AdminFilaments() {
               </div>
 
               <div>
-                <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
+                <label htmlFor="adjust-stock-qty" className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
                   {adjustData.actionType === 'received'
                     ? 'Spools Received'
                     : adjustData.actionType === 'used'
@@ -775,6 +810,8 @@ export default function AdminFilaments() {
                     : 'Net Spool Adjustment (+ or -)'}
                 </label>
                 <input
+                  id="adjust-stock-qty"
+                  name="adjustStockQty"
                   type="number"
                   step="1"
                   required
@@ -794,10 +831,12 @@ export default function AdminFilaments() {
               </div>
 
               <div>
-                <label className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
+                <label htmlFor="adjust-stock-notes" className="block text-xs uppercase tracking-wider text-white/50 mb-1.5">
                   Reason / Notes *
                 </label>
                 <input
+                  id="adjust-stock-notes"
+                  name="adjustStockNotes"
                   type="text"
                   required
                   value={adjustData.notes}

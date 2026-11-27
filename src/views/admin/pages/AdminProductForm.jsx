@@ -28,7 +28,7 @@ const empty = {
   isNew: false,
   isBestSeller: false,
   allowCustomization: false,
-  paymentMethods: ['RAZORPAY', 'COD'],
+  paymentMethods: ['RAZORPAY'],
   images: [],
   specifications: [{ name: '', value: '' }],
   parts: [],
@@ -81,7 +81,7 @@ export default function AdminProductForm() {
           categoryId: catIds[0] || '',
           categoryIds: catIds,
           features: p.features?.length ? p.features : [''],
-          paymentMethods: p.paymentMethods?.length ? p.paymentMethods : ['RAZORPAY', 'COD'],
+          paymentMethods: (p.paymentMethods || []).filter((m) => m !== 'COD').length ? p.paymentMethods.filter((m) => m !== 'COD') : ['RAZORPAY'],
           specifications: p.specifications?.length ? p.specifications : [{ name: '', value: '' }],
           parts: Array.isArray(p.parts) ? p.parts : [],
           trustBadges: Array.isArray(p.trustBadges) ? p.trustBadges : [],
@@ -620,9 +620,12 @@ export default function AdminProductForm() {
         {/* Add from inventory dropdown */}
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <select
+            id="assign-filament-color"
+            name="assignFilamentColor"
             value={selectedFilamentToAdd}
             onChange={(e) => setSelectedFilamentToAdd(e.target.value)}
             className="field-input h-9 flex-1 min-w-[240px] bg-black text-xs text-white border-white/20"
+            aria-label="Choose color to assign"
           >
             <option value="">-- Choose color to assign --</option>
             {allFilaments.map((f) => {
