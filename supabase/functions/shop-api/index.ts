@@ -1071,9 +1071,7 @@ Deno.serve(async (req) => {
         ? mockPaymentsAllowed() || (Deno.env.get('PAYMENT_MODE') || 'mock') !== 'live'
           ? 'mock'
           : 'razorpay'
-        : paymentMethod === 'COD'
-          ? 'cod'
-          : 'bank'
+        : 'bank'
 
       const { data: created, error: checkoutErr } = await sb.rpc('checkout_create_order', {
         p_cart_id: cart.id,

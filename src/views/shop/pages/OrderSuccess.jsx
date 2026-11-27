@@ -4,7 +4,6 @@ import { CheckCircle2, ArrowRight, ShieldCheck, Truck } from 'lucide-react'
 const payCopy = {
   RAZORPAY: 'Payment verified and confirmed via Razorpay',
   UPI: 'Payment received via instant UPI',
-  COD: 'Order confirmed — Cash on Delivery at your doorstep',
   BANK: 'Order recorded — awaiting bank transfer confirmation',
 }
 
