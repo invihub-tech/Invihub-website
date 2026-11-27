@@ -88,6 +88,15 @@ export default function AdminProducts() {
       if (sortBy === 'stock_desc') return (b.stock || 0) - (a.stock || 0)
       if (sortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '')
       if (sortBy === 'name_desc') return (b.name || '').localeCompare(a.name || '')
+      if (sortBy === 'newest') {
+        const rawA = a.createdAt || a.created_at
+        const rawB = b.createdAt || b.created_at
+        const timeA = rawA ? new Date(rawA).getTime() : 0
+        const timeB = rawB ? new Date(rawB).getTime() : 0
+        if (timeA && timeB && timeA !== timeB) return timeB - timeA
+        // Stable fallback by ID so order never shifts arbitrarily
+        return String(b.id || '').localeCompare(String(a.id || ''))
+      }
       return 0
     })
   }, [rows, tab, selectedCategory, q, sortBy])

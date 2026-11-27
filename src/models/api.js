@@ -680,7 +680,72 @@ export const api = {
   adminRestoreCategory: (id) => edge(`/admin/categories/${id}/restore`, { method: 'POST', body: {} }),
   adminAssignProduct: (categoryId, productId) =>
     edge(`/admin/categories/${categoryId}/assign`, { method: 'POST', body: { productId } }),
-  adminProducts: () => edge('/admin/products'),
+  adminProducts: async () => {
+    let items = []
+    try {
+      const res = await edge('/admin/products')
+      if (Array.isArray(res) && res.length > 0) {
+        items = res
+      }
+    } catch (_) {}
+
+    if (!items.length && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('products')
+          .select('*, product_images(*), product_specifications(*), categories(*)')
+          .order('created_at', { ascending: false })
+        if (!error && Array.isArray(data)) {
+          items = data.map((p) => {
+            const images = (p.product_images || []).slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+            const specs = p.product_specifications || []
+            return {
+              id: p.id,
+              name: p.name,
+              slug: p.slug,
+              sku: p.sku,
+              brand: p.brand,
+              shortDescription: p.short_description,
+              description: p.description,
+              price: p.price,
+              mrp: p.mrp,
+              discount: p.discount,
+              taxRate: p.tax_rate,
+              stock: p.stock,
+              lowStockThreshold: p.low_stock_threshold,
+              status: p.status,
+              isFeatured: p.is_featured,
+              isNew: p.is_new,
+              isBestSeller: p.is_best_seller,
+              allowCustomization: Boolean(p.allow_customization),
+              category: p.categories ? { id: p.categories.id, name: p.categories.name, slug: p.categories.slug } : null,
+              categoryIds: (() => {
+                try {
+                  const arr = typeof p.category_ids_json === 'string' ? JSON.parse(p.category_ids_json) : (p.category_ids_json || [])
+                  if (Array.isArray(arr) && arr.length > 0) return arr
+                } catch {}
+                return p.category_id ? [p.category_id] : []
+              })(),
+              images: images.map((i) => ({ id: i.id, url: i.url, alt: i.alt, isPrimary: i.is_primary })),
+              specifications: specs.map((s) => ({ id: s.id, name: s.name, value: s.value })),
+              createdAt: p.created_at,
+              created_at: p.created_at,
+              updatedAt: p.updated_at,
+              updated_at: p.updated_at,
+            }
+          })
+        }
+      } catch (_) {}
+    }
+
+    // Always guarantee products are sorted stably by creation date (created_at DESC)
+    return items.sort((a, b) => {
+      const timeA = new Date(a.createdAt || a.created_at || 0).getTime()
+      const timeB = new Date(b.createdAt || b.created_at || 0).getTime()
+      if (timeA && timeB && timeA !== timeB) return timeB - timeA
+      return String(b.id || '').localeCompare(String(a.id || ''))
+    })
+  },
   adminProduct: async (id) => {
     try {
       return await edge(`/admin/products/${id}`)

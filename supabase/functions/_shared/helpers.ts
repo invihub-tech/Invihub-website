@@ -318,6 +318,8 @@ export function serializeProduct(p: any) {
       return []
     })(),
     inStock: p.stock > 0,
+    createdAt: p.created_at,
+    updatedAt: p.updated_at,
   }
 }
 

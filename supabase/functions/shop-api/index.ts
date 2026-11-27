@@ -2001,7 +2001,7 @@ Deno.serve(async (req) => {
         const { data: rows } = await asb
           .from('products')
           .select(PRODUCT_EMBED)
-          .order('updated_at', { ascending: false })
+          .order('created_at', { ascending: false })
         return json(req, (rows || []).map(serializeProduct))
       }
 
