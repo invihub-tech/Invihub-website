@@ -99,6 +99,29 @@ export default function CartPage() {
   const amountToFreeShipping = Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal)
   const shippingProgress = Math.min(100, Math.round((subtotal / FREE_SHIPPING_THRESHOLD) * 100))
 
+  // Reverse-GST calculations (MRP entered is GST-inclusive @ 18%)
+  const discount = totals.discount || 0
+  const afterDiscount = Math.max(0, subtotal - discount)
+  const shippingCharge = Number(totals.shipping || 0)
+
+  // Base price (MRP excl. 18% GST) = MRP / 1.18
+  const productBase = totals.productBase ?? Math.round((afterDiscount / 1.18) * 100) / 100
+  // Product 18% GST = MRP - Base Price (split equally into 9% CGST and 9% SGST)
+  const productTax = totals.productTax ?? Math.round((afterDiscount - productBase) * 100) / 100
+  const productCgst = totals.productCgst ?? Math.round((productTax / 2) * 100) / 100
+  const productSgst = totals.productSgst ?? Math.round((productTax - productCgst) * 100) / 100
+
+  // Delivery 5% GST split: 2.5% CGST + 2.5% SGST
+  const deliveryCgst = totals.deliveryCgst ?? (shippingCharge > 0 ? Math.round(shippingCharge * 0.025 * 100) / 100 : 0)
+  const deliverySgst = totals.deliverySgst ?? (shippingCharge > 0 ? Math.round(shippingCharge * 0.025 * 100) / 100 : 0)
+  const deliveryTax = Math.round((deliveryCgst + deliverySgst) * 100) / 100
+
+  const totalCgst = Math.round((productCgst + deliveryCgst) * 100) / 100
+  const totalSgst = Math.round((productSgst + deliverySgst) * 100) / 100
+  const totalTax = Math.round((totalCgst + totalSgst) * 100) / 100
+  // Grand Total = MRP (which already includes product GST) + Delivery + Delivery GST
+  const grandTotal = Math.round((afterDiscount + shippingCharge + deliveryTax) * 100) / 100
+
   return (
     <main className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* Breadcrumb */}
@@ -350,8 +373,8 @@ export default function CartPage() {
 
             <div className="space-y-2.5 text-xs text-slate-600">
               <div className="flex justify-between">
-                <span>Price ({items.length} items)</span>
-                <span className="font-semibold text-slate-800">{inr(totals.subtotal || subtotal)}</span>
+                <span>Base Price ({items.length} items, excl. GST)</span>
+                <span className="font-semibold text-slate-800">{inr(productBase, 2)}</span>
               </div>
               {totals.discount > 0 && (
                 <div className="flex justify-between text-emerald-600 font-semibold">
@@ -363,23 +386,44 @@ export default function CartPage() {
                       </span>
                     )}
                   </span>
-                  <span>-{inr(totals.discount)}</span>
+                  <span>-{inr(totals.discount, 2)}</span>
                 </div>
               )}
+
+              {/* Product GST split (18%: 9% CGST + 9% SGST) */}
+              <div className="flex justify-between text-slate-500 text-[11px] pl-2 border-l-2 border-orange-200">
+                <span>Product CGST (9%)</span>
+                <span>{inr(productCgst, 2)}</span>
+              </div>
+              <div className="flex justify-between text-slate-500 text-[11px] pl-2 border-l-2 border-orange-200">
+                <span>Product SGST (9%)</span>
+                <span>{inr(productSgst, 2)}</span>
+              </div>
+
               <div className="flex justify-between">
                 <span>Delivery Charges</span>
                 <span>
-                  {totals.shipping > 0 ? inr(totals.shipping) : <strong className="text-emerald-600">FREE</strong>}
+                  {shippingCharge > 0 ? inr(shippingCharge, 2) : <strong className="text-emerald-600">FREE</strong>}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span>Applicable GST (18%)</span>
-                <span>{inr(totals.tax || Math.round(subtotal * 0.18))}</span>
-              </div>
+
+              {/* Delivery GST split (5%: 2.5% CGST + 2.5% SGST) */}
+              {shippingCharge > 0 && (
+                <>
+                  <div className="flex justify-between text-slate-500 text-[11px] pl-2 border-l-2 border-slate-300">
+                    <span>Delivery CGST (2.5%)</span>
+                    <span>{inr(deliveryCgst, 2)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-500 text-[11px] pl-2 border-l-2 border-slate-300">
+                    <span>Delivery SGST (2.5%)</span>
+                    <span>{inr(deliverySgst, 2)}</span>
+                  </div>
+                </>
+              )}
 
               <div className="pt-3 border-t border-slate-200 flex justify-between items-baseline text-slate-900 font-black text-base">
                 <span>Total Amount</span>
-                <span className="text-xl text-[#f97316]">{inr(totals.total || subtotal)}</span>
+                <span className="text-xl text-[#f97316]">{inr(grandTotal, 2)}</span>
               </div>
             </div>
 

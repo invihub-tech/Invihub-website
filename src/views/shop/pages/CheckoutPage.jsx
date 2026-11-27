@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, inr } from '../../../models/api'
-import { PAYMENT_METHODS } from '../../../config/paymentMethods'
 import { ShieldCheck, Truck, CreditCard, CheckCircle2, Lock, Tag, X, AlertCircle } from 'lucide-react'
 
 export default function CheckoutPage() {
@@ -22,16 +21,15 @@ export default function CheckoutPage() {
     state: '',
     pinCode: '',
     billingSame: true,
-    paymentMethod: '',
+    paymentMethod: 'RAZORPAY',
   })
 
   useEffect(() => {
     api.cart().then((data) => {
       setCart(data)
-      const allowed = data.allowedPaymentMethods || []
       setForm((f) => ({
         ...f,
-        paymentMethod: allowed.includes(f.paymentMethod) ? f.paymentMethod : allowed[0] || 'RAZORPAY',
+        paymentMethod: 'RAZORPAY',
       }))
     })
     api
@@ -50,7 +48,7 @@ export default function CheckoutPage() {
           pinCode: addr?.pinCode || f.pinCode,
         }))
       })
-      .catch(() => {})
+      .catch(() => { })
   }, [])
 
   const set = (k) => (e) =>
@@ -122,6 +120,30 @@ export default function CheckoutPage() {
 
   const items = cart.cart?.items || []
   const totals = cart.totals || {}
+
+  // Reverse-GST calculations (MRP entered is GST-inclusive @ 18%)
+  const subtotal = totals.subtotal || 0
+  const discount = totals.discount || 0
+  const afterDiscount = Math.max(0, subtotal - discount)
+  const shippingCharge = Number(totals.shipping || 0)
+
+  // Base price (MRP excl. 18% GST) = MRP / 1.18
+  const productBase = totals.productBase ?? Math.round((afterDiscount / 1.18) * 100) / 100
+  // Product 18% GST = MRP - Base Price (split equally into 9% CGST and 9% SGST)
+  const productTax = totals.productTax ?? Math.round((afterDiscount - productBase) * 100) / 100
+  const productCgst = totals.productCgst ?? Math.round((productTax / 2) * 100) / 100
+  const productSgst = totals.productSgst ?? Math.round((productTax - productCgst) * 100) / 100
+
+  // Delivery 5% GST split: 2.5% CGST + 2.5% SGST
+  const deliveryCgst = totals.deliveryCgst ?? (shippingCharge > 0 ? Math.round(shippingCharge * 0.025 * 100) / 100 : 0)
+  const deliverySgst = totals.deliverySgst ?? (shippingCharge > 0 ? Math.round(shippingCharge * 0.025 * 100) / 100 : 0)
+  const deliveryTax = Math.round((deliveryCgst + deliverySgst) * 100) / 100
+
+  const totalCgst = Math.round((productCgst + deliveryCgst) * 100) / 100
+  const totalSgst = Math.round((productSgst + deliverySgst) * 100) / 100
+  const totalTax = Math.round((totalCgst + totalSgst) * 100) / 100
+  // Grand Total = MRP (which already includes product GST) + Delivery + Delivery GST
+  const grandTotal = Math.round((afterDiscount + shippingCharge + deliveryTax) * 100) / 100
 
   return (
     <main className="w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -249,50 +271,46 @@ export default function CheckoutPage() {
             </label>
           </div>
 
-          {/* Payment Method Card */}
-          <div className="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-sm space-y-4">
-            <h2 className="text-lg font-extrabold text-slate-900 pb-2 border-b border-slate-100 flex items-center gap-2">
-              <CreditCard className="text-[#f97316]" size={18} />
-              <span>Select Payment Method</span>
-            </h2>
+          {/* Default Online Payment Note */}
+          <div className="bg-white p-6 sm:p-7 rounded-xl border border-slate-200 shadow-sm space-y-3.5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <CreditCard className="text-[#f97316]" size={18} />
+                <span className="text-base font-extrabold text-slate-900">Payment Method</span>
+              </div>
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                <ShieldCheck size={12} className="text-emerald-600" /> 100% Secure
+              </span>
+            </div>
 
-            <div className="space-y-2.5">
-              {(cart.allowedPaymentMethods || []).map((mid) => {
-                const isSelected = form.paymentMethod === mid
-                return (
-                  <label
-                    key={mid}
-                    className={`flex items-center justify-between p-3.5 rounded-xl border-2 transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-[#f97316] bg-orange-50/50 shadow-sm'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value={mid}
-                        checked={isSelected}
-                        onChange={set('paymentMethod')}
-                        className="text-[#f97316] focus:ring-[#f97316]"
-                      />
-                      <div>
-                        <div className="text-xs font-bold text-slate-900">
-                          {PAYMENT_METHODS[mid]?.label || mid}
-                        </div>
-                        <div className="text-[11px] text-slate-500">
-                          {mid === 'RAZORPAY' && 'UPI (GPay/PhonePe), Credit/Debit Cards, NetBanking'}
-                          {mid === 'UPI' && 'Instant scan & pay via any UPI app'}
-                          {mid === 'COD' && 'Cash on delivery available at selected pin codes'}
-                          {mid === 'BANK' && 'Direct NEFT / IMPS business bank transfer'}
-                        </div>
-                      </div>
-                    </div>
-                    {isSelected && <CheckCircle2 size={18} className="text-[#f97316]" />}
-                  </label>
-                )
-              })}
+            <div className="rounded-xl bg-orange-50/40 border border-orange-200/80 p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-[#f97316]" />
+                  <span className="text-xs font-bold text-slate-900">
+                    Online Payment (Default)
+                  </span>
+                </div>
+                <span className="text-[11px] font-bold text-[#f97316] bg-white px-2 py-0.5 rounded border border-orange-200">
+                  Razorpay Secure
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed">
+                All orders are processed through secure online checkout. Pay instantly using your preferred method:
+              </p>
+
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="rounded-md bg-white px-2 py-1 border border-slate-200 text-[11px] font-semibold text-slate-700 shadow-2xs">
+                  UPI (GPay / PhonePe / Paytm)
+                </span>
+                <span className="rounded-md bg-white px-2 py-1 border border-slate-200 text-[11px] font-semibold text-slate-700 shadow-2xs">
+                  Credit / Debit Cards
+                </span>
+                <span className="rounded-md bg-white px-2 py-1 border border-slate-200 text-[11px] font-semibold text-slate-700 shadow-2xs">
+                  NetBanking
+                </span>
+              </div>
             </div>
           </div>
 
@@ -304,7 +322,7 @@ export default function CheckoutPage() {
             className="btn-shop-primary w-full py-4 text-sm font-extrabold gap-2 shadow-xl shadow-orange-950/20"
           >
             <Lock size={16} />
-            <span>{busy ? 'Processing Order…' : `Pay & Place Order • ${inr(totals.total)}`}</span>
+            <span>{busy ? 'Processing Order…' : `Pay & Place Order • ${inr(grandTotal, 2)}`}</span>
           </button>
         </form>
 
@@ -316,39 +334,63 @@ export default function CheckoutPage() {
             </h3>
 
             {/* Item list */}
-            <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 pr-1">
-              {items.map((i) => (
-                <div key={i.id} className="py-2.5 first:pt-0 flex items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="w-5 h-5 rounded bg-slate-100 text-slate-700 font-bold text-[10px] flex items-center justify-center shrink-0">
-                      {i.quantity}×
-                    </span>
-                    <div>
-                      <span className="font-medium text-slate-800 line-clamp-1">{i.name}</span>
-                      {(() => {
-                        let itemVar = null
-                        try {
-                          const vars = JSON.parse(localStorage.getItem('invihub_cart_variations') || '{}')
-                          itemVar = vars[i.productId || i.product?.id || i.id]
-                        } catch (_) {}
-                        if (!itemVar) return null
-                        return (
-                          <div className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
+            <div className="max-h-72 overflow-y-auto divide-y divide-slate-100 pr-1">
+              {items.map((i) => {
+                const product = i.product || i.products || {}
+                const name = i.name || product.name || 'Product'
+                const qty = Number(i.quantity || 1)
+                const unitPrice = Number(i.unitPrice ?? product.price ?? 0)
+                const lineTotal = Number(i.lineTotal ?? (unitPrice * qty))
+                const imgUrl = product.images?.[0]?.url || i.imageUrl || ''
+
+                let itemVar = null
+                try {
+                  const vars = JSON.parse(localStorage.getItem('invihub_cart_variations') || '{}')
+                  itemVar = vars[i.productId || product.id || i.id]
+                } catch (_) { }
+
+                return (
+                  <div key={i.id} className="py-3 first:pt-0 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {/* Thumbnail */}
+                      <div className="w-12 h-12 rounded-lg bg-slate-50 border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center p-1">
+                        {imgUrl ? (
+                          <img
+                            src={imgUrl}
+                            alt={name}
+                            className="w-full h-full object-contain mix-blend-multiply"
+                          />
+                        ) : (
+                          <span className="text-[10px] text-slate-300">No img</span>
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        <span className="font-bold text-slate-900 line-clamp-1 block">{name}</span>
+                        <div className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5">
+                          <span>Qty: <strong className="text-slate-700">{qty}</strong></span>
+                          {unitPrice > 0 && <span>× {inr(unitPrice)}</span>}
+                        </div>
+                        {itemVar && (
+                          <div className="text-[10px] text-slate-500 flex items-center gap-1.5 mt-1">
                             <span
-                              className="w-2 h-2 rounded-full border border-slate-300 inline-block"
+                              className="w-2.5 h-2.5 rounded-full border border-slate-300 inline-block shadow-2xs shrink-0"
                               style={{ backgroundColor: itemVar.colorHex || '#000000' }}
                             />
-                            <span>{itemVar.material} · {itemVar.colorName}</span>
+                            <span className="truncate">{itemVar.colorName || itemVar.name}</span>
                           </div>
-                        )
-                      })()}
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <span className="font-extrabold text-slate-900 block text-xs">
+                        {inr(lineTotal)}
+                      </span>
                     </div>
                   </div>
-                  <span className="font-bold text-slate-900 shrink-0">
-                    {inr(i.lineTotal || i.unitPrice * i.quantity)}
-                  </span>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             {/* Applied Coupon / Coupon Box */}
@@ -401,11 +443,10 @@ export default function CheckoutPage() {
 
               {couponFeedback && (
                 <div
-                  className={`text-[11px] p-2 rounded flex items-center gap-1.5 ${
-                    couponFeedback.type === 'success'
-                      ? 'text-emerald-700 bg-emerald-50 border border-emerald-100'
-                      : 'text-red-600 bg-red-50 border border-red-100'
-                  }`}
+                  className={`text-[11px] p-2 rounded flex items-center gap-1.5 ${couponFeedback.type === 'success'
+                    ? 'text-emerald-700 bg-emerald-50 border border-emerald-100'
+                    : 'text-red-600 bg-red-50 border border-red-100'
+                    }`}
                 >
                   {couponFeedback.type === 'success' ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
                   <span>{couponFeedback.message}</span>
@@ -416,8 +457,8 @@ export default function CheckoutPage() {
             {/* Calculations */}
             <div className="pt-3 border-t border-slate-100 space-y-2 text-xs text-slate-600">
               <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span className="font-semibold text-slate-800">{inr(totals.subtotal)}</span>
+                <span>Base Price ({items.length} items, excl. GST)</span>
+                <span className="font-semibold text-slate-800">{inr(productBase, 2)}</span>
               </div>
               {totals.discount > 0 && (
                 <div className="flex justify-between text-emerald-600 font-semibold">
@@ -429,23 +470,44 @@ export default function CheckoutPage() {
                       </span>
                     )}
                   </span>
-                  <span>-{inr(totals.discount)}</span>
+                  <span>-{inr(totals.discount, 2)}</span>
                 </div>
               )}
+
+              {/* Product GST split (18%: 9% CGST + 9% SGST) */}
+              <div className="flex justify-between text-slate-500 text-[11px] pl-2 border-l-2 border-orange-200">
+                <span>Product CGST (9%)</span>
+                <span>{inr(productCgst, 2)}</span>
+              </div>
+              <div className="flex justify-between text-slate-500 text-[11px] pl-2 border-l-2 border-orange-200">
+                <span>Product SGST (9%)</span>
+                <span>{inr(productSgst, 2)}</span>
+              </div>
+
               <div className="flex justify-between">
-                <span>Delivery</span>
+                <span>Delivery Charges</span>
                 <span>
-                  {totals.shipping > 0 ? inr(totals.shipping) : <strong className="text-emerald-600">FREE</strong>}
+                  {shippingCharge > 0 ? inr(shippingCharge, 2) : <strong className="text-emerald-600">FREE</strong>}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span>GST (18%)</span>
-                <span>{inr(totals.tax)}</span>
-              </div>
+
+              {/* Delivery GST split (5%: 2.5% CGST + 2.5% SGST) */}
+              {shippingCharge > 0 && (
+                <>
+                  <div className="flex justify-between text-slate-500 text-[11px] pl-2 border-l-2 border-slate-300">
+                    <span>Delivery CGST (2.5%)</span>
+                    <span>{inr(deliveryCgst, 2)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-500 text-[11px] pl-2 border-l-2 border-slate-300">
+                    <span>Delivery SGST (2.5%)</span>
+                    <span>{inr(deliverySgst, 2)}</span>
+                  </div>
+                </>
+              )}
 
               <div className="pt-3 border-t border-slate-200 flex justify-between items-baseline font-black text-slate-900 text-base">
                 <span>Grand Total</span>
-                <span className="text-xl text-[#f97316]">{inr(totals.total)}</span>
+                <span className="text-xl text-[#f97316]">{inr(grandTotal, 2)}</span>
               </div>
             </div>
           </div>

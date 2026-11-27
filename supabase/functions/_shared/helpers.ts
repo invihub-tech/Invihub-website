@@ -119,8 +119,8 @@ export const DEFAULT_SETTINGS = {
 }
 
 export const ONLINE_METHODS = new Set(['RAZORPAY', 'UPI'])
-export const ALL_PAYMENT_METHODS = ['RAZORPAY', 'UPI', 'COD', 'BANK']
-export const DEFAULT_PAYMENT_METHODS = ['RAZORPAY', 'COD']
+export const ALL_PAYMENT_METHODS = ['RAZORPAY', 'UPI', 'BANK']
+export const DEFAULT_PAYMENT_METHODS = ['RAZORPAY']
 
 export function parsePaymentMethods(json: string | null | undefined) {
   try {
@@ -208,9 +208,43 @@ export function computeCartTotals(
   discount = round2(discount)
   const afterDiscount = Math.max(0, subtotal - discount)
   const shipping = afterDiscount >= settings.freeShippingThreshold ? 0 : settings.shippingCharge
-  const tax = round2(afterDiscount * (settings.taxRate / 100))
-  const total = round2(afterDiscount + shipping + tax)
-  return { subtotal, discount, shipping, tax, total, eligibleSubtotal }
+
+  // Reverse-GST Calculation (entered product MRP is GST-inclusive at 18%):
+  // Base Price = MRP / 1.18
+  // Product 18% GST = MRP - Base Price (split equally: 9% CGST + 9% SGST)
+  const productBase = round2(afterDiscount / 1.18)
+  const productTax = round2(afterDiscount - productBase)
+  const productCgst = round2(productTax / 2)
+  const productSgst = round2(productTax - productCgst)
+
+  // Delivery GST (5%) split into CGST (2.5%) and SGST (2.5%)
+  const deliveryCgst = shipping > 0 ? round2(shipping * 0.025) : 0
+  const deliverySgst = shipping > 0 ? round2(shipping * 0.025) : 0
+  const deliveryTax = round2(deliveryCgst + deliverySgst)
+
+  const cgst = round2(productCgst + deliveryCgst)
+  const sgst = round2(productSgst + deliverySgst)
+  const tax = round2(cgst + sgst)
+  // Grand Total = MRP (which already includes product GST) + shipping + delivery GST
+  const total = round2(afterDiscount + shipping + deliveryTax)
+
+  return {
+    subtotal,
+    discount,
+    shipping,
+    productBase,
+    productCgst,
+    productSgst,
+    productTax,
+    deliveryCgst,
+    deliverySgst,
+    deliveryTax,
+    cgst,
+    sgst,
+    tax,
+    total,
+    eligibleSubtotal,
+  }
 }
 
 export function serializeProduct(p: any) {

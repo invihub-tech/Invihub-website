@@ -320,10 +320,39 @@ export const api = {
           if (!coupon.minOrderValue || subtotal >= coupon.minOrderValue) {
             const discount = calculateCouponDiscount(coupon, items, subtotal)
             if (discount > 0) {
+              const afterDiscount = Math.max(0, subtotal - discount)
+              const shipping = res.totals?.shipping || 0
+
+              // Reverse-GST Calculation (MRP is GST-inclusive @ 18%)
+              const productBase = Math.round((afterDiscount / 1.18) * 100) / 100
+              const productTax = Math.round((afterDiscount - productBase) * 100) / 100
+              const productCgst = Math.round((productTax / 2) * 100) / 100
+              const productSgst = Math.round((productTax - productCgst) * 100) / 100
+
+              // Delivery 5% GST (2.5% CGST + 2.5% SGST)
+              const deliveryCgst = shipping > 0 ? Math.round(shipping * 0.025 * 100) / 100 : 0
+              const deliverySgst = shipping > 0 ? Math.round(shipping * 0.025 * 100) / 100 : 0
+              const deliveryTax = Math.round((deliveryCgst + deliverySgst) * 100) / 100
+
+              const cgst = Math.round((productCgst + deliveryCgst) * 100) / 100
+              const sgst = Math.round((productSgst + deliverySgst) * 100) / 100
+              const tax = Math.round((cgst + sgst) * 100) / 100
+              const total = Math.round((afterDiscount + shipping + deliveryTax) * 100) / 100
+
               res.totals = {
                 ...res.totals,
                 discount,
-                total: Math.max(0, subtotal - discount + (res.totals?.shipping || 0) + (res.totals?.tax || 0)),
+                productBase,
+                productCgst,
+                productSgst,
+                productTax,
+                deliveryCgst,
+                deliverySgst,
+                deliveryTax,
+                cgst,
+                sgst,
+                tax,
+                total,
               }
               res.coupon = {
                 code: coupon.code,
@@ -385,10 +414,39 @@ export const api = {
         localStorage.setItem('invihub_applied_coupon', JSON.stringify({ ...coupon, discountAmount: discount }))
       } catch (_) {}
 
+      const afterDiscount = Math.max(0, subtotal - discount)
+      const shipping = currentCart?.totals?.shipping || 0
+
+      // Reverse-GST Calculation (MRP is GST-inclusive @ 18%)
+      const productBase = Math.round((afterDiscount / 1.18) * 100) / 100
+      const productTax = Math.round((afterDiscount - productBase) * 100) / 100
+      const productCgst = Math.round((productTax / 2) * 100) / 100
+      const productSgst = Math.round((productTax - productCgst) * 100) / 100
+
+      // Delivery 5% GST (2.5% CGST + 2.5% SGST)
+      const deliveryCgst = shipping > 0 ? Math.round(shipping * 0.025 * 100) / 100 : 0
+      const deliverySgst = shipping > 0 ? Math.round(shipping * 0.025 * 100) / 100 : 0
+      const deliveryTax = Math.round((deliveryCgst + deliverySgst) * 100) / 100
+
+      const cgst = Math.round((productCgst + deliveryCgst) * 100) / 100
+      const sgst = Math.round((productSgst + deliverySgst) * 100) / 100
+      const tax = Math.round((cgst + sgst) * 100) / 100
+      const total = Math.round((afterDiscount + shipping + deliveryTax) * 100) / 100
+
       const totals = {
         ...currentCart.totals,
         discount,
-        total: Math.max(0, subtotal - discount + (currentCart.totals?.shipping || 0) + (currentCart.totals?.tax || 0)),
+        productBase,
+        productCgst,
+        productSgst,
+        productTax,
+        deliveryCgst,
+        deliverySgst,
+        deliveryTax,
+        cgst,
+        sgst,
+        tax,
+        total,
       }
 
       return {
@@ -1351,6 +1409,15 @@ export const api = {
   deleteUpload: (url) => edge('/admin/upload', { method: 'DELETE', body: { url } }),
 }
 
-export function inr(n) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0)
+export function inr(n, decimals = null) {
+  const num = Number(n || 0)
+  // If decimals is explicitly specified (e.g. 2), use it.
+  // Otherwise, if the number has a fractional part, show 2 decimal places. If integer, show 0 decimals.
+  const fractionDigits = decimals !== null ? decimals : (num % 1 !== 0 ? 2 : 0)
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(num)
 }
