@@ -40,6 +40,7 @@ const AdminCustomRequestDetail = lazy(() => import('./views/admin/pages/AdminCus
 const AdminReviews = lazy(() => import('./views/admin/pages/AdminReviews.jsx'))
 const AdminCoupons = lazy(() => import('./views/admin/pages/AdminCoupons.jsx'))
 const AdminFilaments = lazy(() => import('./views/admin/pages/AdminFilaments.jsx'))
+const AdminShippingSettings = lazy(() => import('./views/admin/pages/AdminShippingSettings.jsx'))
 
 // Status / Error pages (shared across app)
 import NotFoundPage from './views/shop/pages/NotFoundPage.jsx'
@@ -97,6 +98,7 @@ createRoot(document.getElementById('root')).render(
               <Route path="inventory" element={<AdminInventory />} />
               <Route path="filaments" element={<AdminFilaments />} />
               <Route path="coupons" element={<AdminCoupons />} />
+              <Route path="shipping" element={<AdminShippingSettings />} />
               <Route path="reviews" element={<AdminReviews />} />
               <Route path="custom-requests" element={<AdminCustomRequests />} />
               <Route path="custom-requests/:id" element={<AdminCustomRequestDetail />} />

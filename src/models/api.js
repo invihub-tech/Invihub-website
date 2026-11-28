@@ -200,7 +200,7 @@ async function resolveProductId(productIdOrSlug) {
       .eq('slug', str)
       .maybeSingle()
     if (p?.id) return p.id
-  } catch (_) {}
+  } catch (_) { }
 
   // Look up by id (e.g. text-based IDs like seed_prod_arm)
   try {
@@ -210,7 +210,7 @@ async function resolveProductId(productIdOrSlug) {
       .eq('id', str)
       .maybeSingle()
     if (p2?.id) return p2.id
-  } catch (_) {}
+  } catch (_) { }
 
   return str
 }
@@ -266,7 +266,7 @@ export const api = {
             })),
           }
         }
-      } catch (_) {}
+      } catch (_) { }
     }
     return {
       ok: true,
@@ -364,7 +364,7 @@ export const api = {
           }
         }
       }
-    } catch (_) {}
+    } catch (_) { }
     return res
   },
   addToCart: (productId, quantity = 1) => edge('/cart', { method: 'POST', body: { productId, quantity } }),
@@ -412,7 +412,7 @@ export const api = {
 
       try {
         localStorage.setItem('invihub_applied_coupon', JSON.stringify({ ...coupon, discountAmount: discount }))
-      } catch (_) {}
+      } catch (_) { }
 
       const afterDiscount = Math.max(0, subtotal - discount)
       const shipping = currentCart?.totals?.shipping || 0
@@ -465,7 +465,7 @@ export const api = {
   removeCoupon: async () => {
     try {
       localStorage.removeItem('invihub_applied_coupon')
-    } catch (_) {}
+    } catch (_) { }
     const currentCart = await edge('/cart')
     return {
       ...currentCart,
@@ -477,7 +477,7 @@ export const api = {
     let savedCoupon = null
     try {
       savedCoupon = JSON.parse(localStorage.getItem('invihub_applied_coupon') || 'null')
-    } catch (_) {}
+    } catch (_) { }
     const body = {
       ...payload,
       couponCode: savedCoupon?.code || payload?.couponCode || null,
@@ -486,7 +486,7 @@ export const api = {
     const result = await edge('/checkout', { method: 'POST', body })
     try {
       localStorage.removeItem('invihub_applied_coupon')
-    } catch (_) {}
+    } catch (_) { }
 
     // Deduct filament variation stock if applicable
     if (result?.orderId && supabase) {
@@ -587,7 +587,7 @@ export const api = {
       if (login.error) {
         throw new ApiError(
           login.error.message ||
-            'Account created but sign-in requires email confirmation. Disable confirmations in Supabase Auth for test setup.',
+          'Account created but sign-in requires email confirmation. Disable confirmations in Supabase Auth for test setup.',
           400,
         )
       }
@@ -687,7 +687,7 @@ export const api = {
       if (Array.isArray(res) && res.length > 0) {
         items = res
       }
-    } catch (_) {}
+    } catch (_) { }
 
     if (!items.length && supabase) {
       try {
@@ -723,7 +723,7 @@ export const api = {
                 try {
                   const arr = typeof p.category_ids_json === 'string' ? JSON.parse(p.category_ids_json) : (p.category_ids_json || [])
                   if (Array.isArray(arr) && arr.length > 0) return arr
-                } catch {}
+                } catch { }
                 return p.category_id ? [p.category_id] : []
               })(),
               images: images.map((i) => ({ id: i.id, url: i.url, alt: i.alt, isPrimary: i.is_primary })),
@@ -735,7 +735,7 @@ export const api = {
             }
           })
         }
-      } catch (_) {}
+      } catch (_) { }
     }
 
     // Always guarantee products are sorted stably by creation date (created_at DESC)
@@ -766,7 +766,7 @@ export const api = {
               const tags = typeof data.tags_json === 'string' ? JSON.parse(data.tags_json) : (data.tags_json || [])
               trustBadges = (tags || []).filter((t) => typeof t === 'string' && t.startsWith('badge:')).map((t) => t.slice(6))
             }
-          } catch {}
+          } catch { }
           return { ...data, trustBadges: Array.isArray(trustBadges) ? trustBadges : [] }
         }
       }
@@ -786,14 +786,14 @@ export const api = {
       if (supabase && (err.status === 404 || err.message?.includes('404') || err.message?.includes('Not found'))) {
         try {
           await supabase.from('order_items').update({ product_id: null }).eq('product_id', id)
-        } catch (_) {}
+        } catch (_) { }
         try {
           await supabase.from('cart_items').delete().eq('product_id', id)
           await supabase.from('inventory_movements').delete().eq('product_id', id)
           await supabase.from('wishlist_items').delete().eq('product_id', id)
           await supabase.from('product_specifications').delete().eq('product_id', id)
           await supabase.from('product_images').delete().eq('product_id', id)
-        } catch (_) {}
+        } catch (_) { }
         const { error: delErr } = await supabase.from('products').delete().eq('id', id)
         if (delErr) throw new ApiError(delErr.message, 400)
         return { ok: true, deletedId: id }
@@ -820,11 +820,11 @@ export const api = {
               let details = null
               try {
                 details = extra?.variation_details_json ? JSON.parse(extra.variation_details_json) : null
-              } catch (_) {}
+              } catch (_) { }
               return { ...it, filamentId: extra?.filament_id, variationDetails: details }
             })
           }
-        } catch (_) {}
+        } catch (_) { }
       }
       return res
     } catch (err) {
@@ -1250,7 +1250,7 @@ export const api = {
             reason: 'received',
             notes: 'Initial stock entry on creation',
           })
-        } catch (_) {}
+        } catch (_) { }
       }
 
       return { ok: true, filament: mapFilament(data) }
@@ -1414,7 +1414,7 @@ export const api = {
             .delete()
             .eq('product_id', productId)
         }
-      } catch (_) {}
+      } catch (_) { }
 
       // 3. Upsert with onConflict so existing keys update cleanly without 409 Conflict
       if (rows.length > 0) {
@@ -1472,6 +1472,184 @@ export const api = {
     return data.url
   },
   deleteUpload: (url) => edge('/admin/upload', { method: 'DELETE', body: { url } }),
+
+  // ── Shipping & Delivery Settings (Zones & Rate Cards) ────────────────────────
+  adminShippingSettings: async () => {
+    const DEFAULT_SHIPPING_DATA = {
+      globalSettings: {
+        warehousePinPrefix: '56',
+        packagingBufferGrams: 80,
+        freeShippingMinCart: 599,
+        enableFreeShipping: true,
+      },
+      rateCards: [
+        {
+          id: 'zone-local',
+          zoneCode: 'local',
+          zoneName: 'Local (Intra-City / Same Prefix)',
+          description: 'Bangalore & same PIN prefix (e.g., 56xxx)',
+          base500gPrice: 40,
+          additional500gPrice: 25,
+          gstPercentage: 18,
+          estimatedDays: '1-2 business days',
+          isActive: true,
+        },
+        {
+          id: 'zone-regional',
+          zoneCode: 'regional',
+          zoneName: 'Regional (South India)',
+          description: 'Karnataka, Tamil Nadu, Kerala, Andhra, Telangana',
+          base500gPrice: 50,
+          additional500gPrice: 30,
+          gstPercentage: 18,
+          estimatedDays: '2-4 business days',
+          isActive: true,
+        },
+        {
+          id: 'zone-national',
+          zoneCode: 'national',
+          zoneName: 'National (Rest of India)',
+          description: 'All other standard serviceable states and metros',
+          base500gPrice: 65,
+          additional500gPrice: 40,
+          gstPercentage: 18,
+          estimatedDays: '4-6 business days',
+          isActive: true,
+        },
+        {
+          id: 'zone-special',
+          zoneCode: 'special_zone',
+          zoneName: 'Special Zone (NE, J&K, Islands)',
+          description: 'Jammu & Kashmir, Northeast, Andaman & Nicobar, Lakshadweep',
+          base500gPrice: 90,
+          additional500gPrice: 60,
+          gstPercentage: 18,
+          estimatedDays: '6-9 business days',
+          isActive: true,
+        },
+      ],
+    }
+
+    // 1. Read from saved local storage / configured rules
+    try {
+      const saved = localStorage.getItem('invihub_shipping_settings')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed.globalSettings && parsed.rateCards?.length) {
+          return parsed
+        }
+      }
+    } catch { }
+
+    // 2. Return standard default shipping configuration
+    return DEFAULT_SHIPPING_DATA
+  },
+
+  adminUpdateShippingSettings: async (payload) => {
+    const { globalSettings, rateCards } = payload || {}
+
+    // Always mirror to localStorage for instantaneous UI recall and offline/pre-migration resilience
+    try {
+      localStorage.setItem('invihub_shipping_settings', JSON.stringify({ globalSettings, rateCards }))
+    } catch { }
+
+    return { ok: true }
+  },
+
+  // Dynamic Shipping & Delivery Calculation based on PIN code and Cart Items
+  calculateDeliveryCharge: async (cartItems, customerPinCode, cartSubtotal) => {
+    let settings = null
+    try {
+      const data = await api.adminShippingSettings()
+      settings = data
+    } catch {
+      // fallback
+    }
+
+    const globalSettings = settings?.globalSettings || {
+      warehousePinPrefix: '56',
+      packagingBufferGrams: 80,
+      freeShippingMinCart: 599,
+      enableFreeShipping: true,
+    }
+    const rateCards = settings?.rateCards || []
+
+    const subtotal = Number(cartSubtotal || 0)
+
+    // 1. Check Free Shipping Threshold
+    if (globalSettings.enableFreeShipping && subtotal >= Number(globalSettings.freeShippingMinCart || 0)) {
+      return {
+        deliveryFee: 0,
+        freeShippingApplied: true,
+        estimatedDays: '3-6 business days',
+        chargeableWeightKg: '0.00',
+        zone: 'National (Free Delivery)',
+      }
+    }
+
+    // 2. Calculate Chargeable Weight (Actual vs. Volumetric)
+    let totalActualGrams = Number(globalSettings.packagingBufferGrams || 80)
+    let totalVolumetricGrams = 0
+
+    for (const item of cartItems || []) {
+      const qty = Number(item.quantity || 1)
+      const p = item.product || item
+      const deadWeight = Number(p.deadWeightGrams || p.dead_weight_grams || 200)
+      const l = Number(p.lengthCm || p.length_cm || 10)
+      const w = Number(p.widthCm || p.width_cm || 10)
+      const h = Number(p.heightCm || p.height_cm || 10)
+
+      totalActualGrams += deadWeight * qty
+      const volGrams = ((l * w * h) / 5000) * 1000
+      totalVolumetricGrams += volGrams * qty
+    }
+
+    const chargeableGrams = Math.max(totalActualGrams, totalVolumetricGrams)
+
+    // 3. Identify Zone from PIN Code Prefix
+    const pinStr = String(customerPinCode || '').trim()
+    const pinPrefix2 = pinStr.slice(0, 2)
+    const originPrefix = String(globalSettings.warehousePinPrefix || '56').trim()
+
+    let matchedZone = 'national'
+    if (pinStr.length >= 2) {
+      if (pinPrefix2 === originPrefix) {
+        matchedZone = 'local'
+      } else if (['56', '57', '58', '59', '60', '61', '62', '63', '64'].includes(pinPrefix2)) {
+        matchedZone = 'regional'
+      } else if (['18', '19', '78', '79', '73', '74'].includes(pinPrefix2)) {
+        matchedZone = 'special_zone'
+      } else {
+        matchedZone = 'national'
+      }
+    }
+
+    const rateCard =
+      rateCards.find((rc) => rc.zoneCode?.toLowerCase() === matchedZone.toLowerCase()) ||
+      rateCards[0] || {
+        base500gPrice: 45,
+        additional500gPrice: 30,
+        gstPercentage: 18,
+        estimatedDays: '3-6 business days',
+        zoneName: 'National',
+      }
+
+    // 4. Calculate 500g Slabs (Minimum 1 slab)
+    const totalSlabs = Math.max(1, Math.ceil(chargeableGrams / 500))
+    const extraSlabs = totalSlabs - 1
+
+    const baseFreight = Number(rateCard.base500gPrice || 0) + extraSlabs * Number(rateCard.additional500gPrice || 0)
+    const gstAmount = (baseFreight * Number(rateCard.gstPercentage || 18)) / 100
+    const finalFee = Math.ceil(baseFreight + gstAmount) // Round up to nearest rupee
+
+    return {
+      deliveryFee: finalFee,
+      freeShippingApplied: false,
+      chargeableWeightKg: (chargeableGrams / 1000).toFixed(2),
+      zone: rateCard.zoneName || matchedZone.toUpperCase(),
+      estimatedDays: rateCard.estimatedDays || '3-6 business days',
+    }
+  },
 }
 
 export function inr(n, decimals = null) {

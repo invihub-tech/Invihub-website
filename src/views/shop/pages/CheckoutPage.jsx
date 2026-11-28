@@ -11,6 +11,7 @@ export default function CheckoutPage() {
   const [couponCode, setCouponCode] = useState('')
   const [couponLoading, setCouponLoading] = useState(false)
   const [couponFeedback, setCouponFeedback] = useState(null)
+  const [shippingQuote, setShippingQuote] = useState(null)
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -50,6 +51,20 @@ export default function CheckoutPage() {
       })
       .catch(() => { })
   }, [])
+
+  // Recalculate dynamic delivery charge when customer enters or changes PIN code
+  useEffect(() => {
+    const pin = String(form.pinCode || '').trim()
+    if (cart && pin.length >= 2) {
+      const items = cart.cart?.items || []
+      const sub = Math.max(0, (cart.totals?.subtotal || 0) - (cart.totals?.discount || 0))
+      api.calculateDeliveryCharge(items, pin, sub).then((quote) => {
+        setShippingQuote(quote)
+      }).catch(() => { })
+    } else {
+      setShippingQuote(null)
+    }
+  }, [form.pinCode, cart])
 
   const set = (k) => (e) =>
     setForm((f) => ({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
@@ -125,7 +140,7 @@ export default function CheckoutPage() {
   const subtotal = totals.subtotal || 0
   const discount = totals.discount || 0
   const afterDiscount = Math.max(0, subtotal - discount)
-  const shippingCharge = Number(totals.shipping || 0)
+  const shippingCharge = shippingQuote ? Number(shippingQuote.deliveryFee || 0) : Number(totals.shipping || 0)
 
   // Base price (MRP excl. 18% GST) = MRP / 1.18
   const productBase = totals.productBase ?? Math.round((afterDiscount / 1.18) * 100) / 100
@@ -484,8 +499,15 @@ export default function CheckoutPage() {
                 <span>{inr(productSgst, 2)}</span>
               </div>
 
-              <div className="flex justify-between">
-                <span>Delivery Charges</span>
+              <div className="flex justify-between items-center">
+                <div>
+                  <span>Delivery Charges</span>
+                  {shippingQuote && (
+                    <span className="block text-[10px] text-slate-400">
+                      {shippingQuote.zone} ({shippingQuote.estimatedDays})
+                    </span>
+                  )}
+                </div>
                 <span>
                   {shippingCharge > 0 ? inr(shippingCharge, 2) : <strong className="text-emerald-600">FREE</strong>}
                 </span>
