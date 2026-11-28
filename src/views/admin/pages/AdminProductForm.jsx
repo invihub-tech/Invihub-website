@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { Trash2, ChevronDown, Check, X, Disc, Plus, Layers, AlertCircle } from 'lucide-react'
+import { Trash2, ChevronDown, Check, X, Disc, Plus, Layers, AlertCircle, Truck, Box } from 'lucide-react'
 import { api, inr } from '../../../models/api'
 import { adminBase } from '../../../config/adminPath'
 import { PAYMENT_METHODS } from '../../../config/paymentMethods'
@@ -28,6 +28,10 @@ const empty = {
   isNew: false,
   isBestSeller: false,
   allowCustomization: false,
+  deadWeightGrams: 0,
+  lengthCm: 0,
+  widthCm: 0,
+  heightCm: 0,
   paymentMethods: ['RAZORPAY'],
   images: [],
   specifications: [{ name: '', value: '' }],
@@ -61,20 +65,20 @@ export default function AdminProductForm() {
 
   useEffect(() => {
     api.adminCategories().then(setCats)
-    api.adminFilaments().then((res) => setAllFilaments(res?.filaments || [])).catch(() => {})
+    api.adminFilaments().then((res) => setAllFilaments(res?.filaments || [])).catch(() => { })
     if (id) {
-      api.adminProductFilamentVariations(id).then((vars) => setFilamentVariations(vars || [])).catch(() => {})
+      api.adminProductFilamentVariations(id).then((vars) => setFilamentVariations(vars || [])).catch(() => { })
       api.adminProducts().then((rows) => {
         const p = rows.find((r) => r.id === id || r.slug === id)
         if (!p) return
         if (p.id && p.id !== id) {
-          api.adminProductFilamentVariations(p.id).then((vars) => setFilamentVariations(vars || [])).catch(() => {})
+          api.adminProductFilamentVariations(p.id).then((vars) => setFilamentVariations(vars || [])).catch(() => { })
         }
         const catIds = Array.isArray(p.categoryIds) && p.categoryIds.length > 0
           ? p.categoryIds
           : p.category?.id
-          ? [p.category.id]
-          : []
+            ? [p.category.id]
+            : []
         setForm({
           ...empty,
           ...p,
@@ -82,6 +86,10 @@ export default function AdminProductForm() {
           categoryIds: catIds,
           features: p.features?.length ? p.features : [''],
           paymentMethods: (p.paymentMethods || []).filter((m) => m !== 'COD').length ? p.paymentMethods.filter((m) => m !== 'COD') : ['RAZORPAY'],
+          deadWeightGrams: p.deadWeightGrams ?? p.dead_weight_grams ?? 0,
+          lengthCm: p.lengthCm ?? p.length_cm ?? 0,
+          widthCm: p.widthCm ?? p.width_cm ?? 0,
+          heightCm: p.heightCm ?? p.height_cm ?? 0,
           specifications: p.specifications?.length ? p.specifications : [{ name: '', value: '' }],
           parts: Array.isArray(p.parts) ? p.parts : [],
           trustBadges: Array.isArray(p.trustBadges) ? p.trustBadges : [],
@@ -135,8 +143,8 @@ export default function AdminProductForm() {
     const catIds = form.categoryIds?.length
       ? form.categoryIds
       : form.categoryId
-      ? [form.categoryId]
-      : []
+        ? [form.categoryId]
+        : []
     if (!catIds.length) {
       setErr('Please select at least one category')
       return
@@ -158,8 +166,8 @@ export default function AdminProductForm() {
             allowedColors: Array.isArray(p.allowedColors)
               ? p.allowedColors.map((c) => c.trim()).filter(Boolean)
               : typeof p.allowedColors === 'string'
-              ? p.allowedColors.split(',').map((c) => c.trim()).filter(Boolean)
-              : ['Black', 'White'],
+                ? p.allowedColors.split(',').map((c) => c.trim()).filter(Boolean)
+                : ['Black', 'White'],
           })),
       }
       const savedRes = await api.adminSaveProduct(payload, id)
@@ -201,9 +209,8 @@ export default function AdminProductForm() {
               <button
                 type="button"
                 onClick={() => setCatDropdownOpen((prev) => !prev)}
-                className={`field-input !h-auto min-h-[44px] w-full bg-black/60 text-left flex items-center justify-between gap-2 py-2 cursor-pointer transition-all ${
-                  catDropdownOpen ? 'border-[#c5a059]/60 ring-1 ring-[#c5a059]/40' : ''
-                }`}
+                className={`field-input !h-auto min-h-[44px] w-full bg-black/60 text-left flex items-center justify-between gap-2 py-2 cursor-pointer transition-all ${catDropdownOpen ? 'border-[#c5a059]/60 ring-1 ring-[#c5a059]/40' : ''
+                  }`}
               >
                 {form.categoryIds && form.categoryIds.length > 0 ? (
                   <div className="flex flex-wrap items-center gap-1.5 flex-1">
@@ -242,9 +249,8 @@ export default function AdminProductForm() {
                 )}
                 <ChevronDown
                   size={16}
-                  className={`text-white/40 shrink-0 transition-transform duration-200 ${
-                    catDropdownOpen ? 'rotate-180 text-white' : ''
-                  }`}
+                  className={`text-white/40 shrink-0 transition-transform duration-200 ${catDropdownOpen ? 'rotate-180 text-white' : ''
+                    }`}
                 />
               </button>
 
@@ -286,19 +292,17 @@ export default function AdminProductForm() {
                             categoryId: next[0] || '',
                           }))
                         }}
-                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                          isSelected
-                            ? 'bg-[#c5a059]/15 text-[#c5a059]'
-                            : 'text-white/70 hover:bg-white/5 hover:text-white'
-                        }`}
+                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors ${isSelected
+                          ? 'bg-[#c5a059]/15 text-[#c5a059]'
+                          : 'text-white/70 hover:bg-white/5 hover:text-white'
+                          }`}
                       >
                         <div className="flex items-center gap-2.5">
                           <div
-                            className={`h-4 w-4 rounded border flex items-center justify-center transition-all ${
-                              isSelected
-                                ? 'border-[#c5a059] bg-[#c5a059] text-black'
-                                : 'border-white/20 bg-black/40'
-                            }`}
+                            className={`h-4 w-4 rounded border flex items-center justify-center transition-all ${isSelected
+                              ? 'border-[#c5a059] bg-[#c5a059] text-black'
+                              : 'border-white/20 bg-black/40'
+                              }`}
                           >
                             {isSelected && <Check size={12} strokeWidth={3} />}
                           </div>
@@ -339,6 +343,104 @@ export default function AdminProductForm() {
                 <input type="number" className="field-input mt-2" value={form[k]} onChange={(e) => set(k, e.target.value)} />
               </label>
             ))}
+          </div>
+
+          {/* Shipping & Package Dimensions */}
+          <div className="rounded-lg border border-white/10 bg-white/5 p-3.5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Truck size={14} className="text-[#c5a059]" />
+                <span className="text-xs uppercase tracking-wider font-semibold text-white/90">
+                  Shipping Weight & Package Dimensions
+                </span>
+              </div>
+              <span className="text-[10px] text-white/40">Used for volumetric freight calculation</span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-[10px] uppercase text-white/50 mb-1">
+                  Dead Weight (g)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    step="10"
+                    placeholder="e.g. 650"
+                    className="field-input text-xs pr-6"
+                    value={form.deadWeightGrams}
+                    onChange={(e) => set('deadWeightGrams', Math.max(0, Number(e.target.value)))}
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 text-[10px]">g</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase text-white/50 mb-1">
+                  Length (cm)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    placeholder="e.g. 15"
+                    className="field-input text-xs pr-8"
+                    value={form.lengthCm}
+                    onChange={(e) => set('lengthCm', Math.max(0, Number(e.target.value)))}
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 text-[10px]">cm</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase text-white/50 mb-1">
+                  Width (cm)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    placeholder="e.g. 10"
+                    className="field-input text-xs pr-8"
+                    value={form.widthCm}
+                    onChange={(e) => set('widthCm', Math.max(0, Number(e.target.value)))}
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 text-[10px]">cm</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] uppercase text-white/50 mb-1">
+                  Height (cm)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    placeholder="e.g. 10"
+                    className="field-input text-xs pr-8"
+                    value={form.heightCm}
+                    onChange={(e) => set('heightCm', Math.max(0, Number(e.target.value)))}
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 text-[10px]">cm</span>
+                </div>
+              </div>
+            </div>
+
+            {form.lengthCm > 0 && form.widthCm > 0 && form.heightCm > 0 && (
+              <div className="text-[11px] text-[#c5a059] flex items-center justify-between pt-1 border-t border-white/5">
+                <span>
+                  Volumetric Weight: {Math.round(((form.lengthCm * form.widthCm * form.heightCm) / 5000) * 1000)} g
+                </span>
+                <span className="text-white/40 text-[10px]">
+                  Chargeable: {Math.max(Number(form.deadWeightGrams || 0), Math.round(((form.lengthCm * form.widthCm * form.heightCm) / 5000) * 1000))} g
+                </span>
+              </div>
+            )}
           </div>
         </div>
         <div>
@@ -393,15 +495,15 @@ export default function AdminProductForm() {
           </div>
         </div>
       </div>
-          <label className="block text-xs uppercase text-white/40">
-            Status
-            <select className="field-input mt-2 bg-black" value={form.status} onChange={(e) => set('status', e.target.value)}>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-              <option value="ARCHIVED">Archived</option>
-            </select>
-          </label>
-          <div className="flex flex-wrap gap-4 text-sm">
+      <label className="block text-xs uppercase text-white/40">
+        Status
+        <select className="field-input mt-2 bg-black" value={form.status} onChange={(e) => set('status', e.target.value)}>
+          <option value="ACTIVE">Active</option>
+          <option value="INACTIVE">Inactive</option>
+          <option value="ARCHIVED">Archived</option>
+        </select>
+      </label>
+      <div className="flex flex-wrap gap-4 text-sm">
         {['isFeatured', 'isNew', 'isBestSeller'].map((k) => (
           <label key={k} className="flex gap-2">
             <input type="checkbox" checked={!!form[k]} onChange={(e) => set(k, e.target.checked)} /> {k}
@@ -412,22 +514,22 @@ export default function AdminProductForm() {
           allowCustomization
         </label>
       </div>
-          <fieldset className="mt-4 space-y-2">
-            <legend className="text-xs uppercase text-white/40">Payments accepted</legend>
-            {PAYMENT_METHODS.map((m) => (
-              <label key={m.id} className="flex items-center gap-2 text-sm text-white/80">
-                <input
-                  type="checkbox"
-                  checked={(form.paymentMethods || []).includes(m.id)}
-                  onChange={(e) => {
-                    const cur = form.paymentMethods || []
-                    set('paymentMethods', e.target.checked ? [...cur, m.id] : cur.filter((id) => id !== m.id))
-                  }}
-                />
-                {m.label}
-              </label>
-            ))}
-          </fieldset>
+      <fieldset className="mt-4 space-y-2">
+        <legend className="text-xs uppercase text-white/40">Payments accepted</legend>
+        {PAYMENT_METHODS.map((m) => (
+          <label key={m.id} className="flex items-center gap-2 text-sm text-white/80">
+            <input
+              type="checkbox"
+              checked={(form.paymentMethods || []).includes(m.id)}
+              onChange={(e) => {
+                const cur = form.paymentMethods || []
+                set('paymentMethods', e.target.checked ? [...cur, m.id] : cur.filter((id) => id !== m.id))
+              }}
+            />
+            {m.label}
+          </label>
+        ))}
+      </fieldset>
 
       {/* Product Badges Section */}
       <div className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-3">
@@ -453,11 +555,10 @@ export default function AdminProductForm() {
             return (
               <label
                 key={badge.id}
-                className={`flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
-                  isChecked
-                    ? 'bg-[#c5a059]/15 border-[#c5a059] text-white shadow-sm'
-                    : 'bg-black/40 border-white/10 text-white/70 hover:border-white/20'
-                }`}
+                className={`flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer ${isChecked
+                  ? 'bg-[#c5a059]/15 border-[#c5a059] text-white shadow-sm'
+                  : 'bg-black/40 border-white/10 text-white/70 hover:border-white/20'
+                  }`}
               >
                 <input
                   type="checkbox"
@@ -610,7 +711,6 @@ export default function AdminProductForm() {
           </div>
           <Link
             to={`${adminBase}/filaments`}
-            target="_blank"
             className="text-[11px] text-white/40 hover:text-[#c5a059] underline self-start sm:self-auto"
           >
             Manage Filament Inventory →

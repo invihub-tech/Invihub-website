@@ -168,7 +168,7 @@ export function computeCartTotals(
       try {
         const parsed = typeof p.category_ids_json === 'string' ? JSON.parse(p.category_ids_json) : p.category_ids_json
         if (Array.isArray(parsed)) pCats.push(...parsed)
-      } catch {}
+      } catch { }
 
       let isEligible = false
       if (appliesTo === 'ALL') {
@@ -284,7 +284,7 @@ export function serializeProduct(p: any) {
       try {
         const arr = typeof p.category_ids_json === 'string' ? JSON.parse(p.category_ids_json) : (p.category_ids_json || [])
         if (Array.isArray(arr) && arr.length > 0) return arr
-      } catch {}
+      } catch { }
       return p.category_id ? [p.category_id] : []
     })(),
     images: images.map((i: any) => ({
@@ -307,16 +307,20 @@ export function serializeProduct(p: any) {
           const arr = typeof p.trust_badges_json === 'string' ? JSON.parse(p.trust_badges_json) : p.trust_badges_json
           if (Array.isArray(arr)) return arr
         }
-      } catch {}
+      } catch { }
       try {
         const tags = typeof p.tags_json === 'string' ? JSON.parse(p.tags_json) : (p.tags_json || [])
         const badgeTags = (tags || [])
           .filter((t: string) => typeof t === 'string' && t.startsWith('badge:'))
           .map((t: string) => t.slice(6))
         if (badgeTags.length > 0) return badgeTags
-      } catch {}
+      } catch { }
       return []
     })(),
+    deadWeightGrams: Number(p.dead_weight_grams ?? p.deadWeightGrams ?? 200),
+    lengthCm: Number(p.length_cm ?? p.lengthCm ?? 10),
+    widthCm: Number(p.width_cm ?? p.widthCm ?? 10),
+    heightCm: Number(p.height_cm ?? p.heightCm ?? 10),
     inStock: p.stock > 0,
     createdAt: p.created_at,
     updatedAt: p.updated_at,

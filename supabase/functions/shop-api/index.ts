@@ -166,12 +166,12 @@ function serializeOrderAdmin(o: any) {
     })),
     customer: customer
       ? {
-          id: customer.id,
-          name: customer.name,
-          email: customer.email,
-          phone: customer.phone,
-          registered: true,
-        }
+        id: customer.id,
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        registered: true,
+      }
       : null,
     accountType: customer ? 'Registered' : 'Guest',
   }
@@ -239,8 +239,8 @@ function productData(body: any) {
   const catIds = Array.isArray(body.categoryIds) && body.categoryIds.length > 0
     ? body.categoryIds
     : body.categoryId
-    ? [body.categoryId]
-    : []
+      ? [body.categoryId]
+      : []
   return {
     name: body.name,
     slug: body.slug,
@@ -390,12 +390,12 @@ async function cartPayload(req: Request, sb: ReturnType<typeof serviceClient>, c
     allowedPaymentMethods,
     coupon: coupon
       ? {
-          id: coupon.id,
-          code: coupon.code,
-          discountType: coupon.discount_type,
-          discountValue: Number(coupon.discount_value),
-          discountAmount: totals.discount,
-        }
+        id: coupon.id,
+        code: coupon.code,
+        discountType: coupon.discount_type,
+        discountValue: Number(coupon.discount_value),
+        discountAmount: totals.discount,
+      }
       : null,
     couponError,
   }
@@ -1366,11 +1366,11 @@ Deno.serve(async (req) => {
         const { data: byNum } = byId
           ? { data: null }
           : await sb
-              .from('orders')
-              .select('*, order_items(*)')
-              .eq('order_number', m.id)
-              .eq('shipping_email', email)
-              .maybeSingle()
+            .from('orders')
+            .select('*, order_items(*)')
+            .eq('order_number', m.id)
+            .eq('shipping_email', email)
+            .maybeSingle()
         const order = byId || byNum
         if (!order || !(await verifyOrderAccess(order, email, accessToken))) {
           return err(req, 'Order not found', 404)
@@ -2178,7 +2178,7 @@ Deno.serve(async (req) => {
           // Unlink past order items so order history and customer receipts remain preserved
           try {
             await asb.from('order_items').update({ product_id: null }).eq('product_id', m.id)
-          } catch (_) {}
+          } catch (_) { }
 
           // Clean up dependent child rows
           try {
@@ -2187,7 +2187,7 @@ Deno.serve(async (req) => {
             await asb.from('wishlist_items').delete().eq('product_id', m.id)
             await asb.from('product_specifications').delete().eq('product_id', m.id)
             await asb.from('product_images').delete().eq('product_id', m.id)
-          } catch (_) {}
+          } catch (_) { }
 
           // Delete the product permanently
           const { error: delErr } = await asb
@@ -2224,10 +2224,10 @@ Deno.serve(async (req) => {
           const { data: byNum } = byId
             ? { data: null }
             : await asb
-                .from('orders')
-                .select('*, customers(*), order_items(*), payments(*)')
-                .eq('order_number', m.id)
-                .maybeSingle()
+              .from('orders')
+              .select('*, customers(*), order_items(*), payments(*)')
+              .eq('order_number', m.id)
+              .maybeSingle()
           const row = byId || byNum
           if (!row) return err(req, 'Not found', 404)
           return json(req, serializeOrderAdmin(row))
